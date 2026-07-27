@@ -1,0 +1,3 @@
+package runlogapi
+
+func InitServer() {}

@@ -1,0 +1,11 @@
+
+#微服务的私有属性
+service_description:
+  name: gids
+  version: 0.1 #optional
+instance_description:
+  properties:
+    supervison: disable
+healthcheck:
+  port: 23710
+  path: /healthcheck

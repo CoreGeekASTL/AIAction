@@ -1,0 +1,12 @@
+{
+  "Centralized_Storage": "true",
+  "Dir": "gids",
+  "RootDir": "SUM",
+  "LocalLogNum": 30,
+  "LocalLogSize": 20,
+  "Dual": true,
+  "Platform": true,
+  "FileList": [
+    "/opt/container/log/${APPID}/gids/gids.log"
+  ]
+}

@@ -1,0 +1,38 @@
+| 模块 | | 自动化 | | 用例ID | 功能描述 | 前置条件 | 测试步骤 | 预期结果 | 级别 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 白名单管理 | | | | | | | | | |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_001_001 | 功能点：白名单首次导入(firstImport) | P1、GIDS服务已启动(LOCAL_MODE,127.0.0.1:9090) P2、白名单表为空(全新gids.db) | S1、POST /auth/v1/importIMEIList，上传imei_imsi_whitelist_test.csv(含IMEI+IMSI两列)，operation=firstImport | E1、响应code=200，msg=success | Level 0 |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_001_002 | 功能点：重复首次导入被拒绝(幂等校验) | P1、GIDS服务已启动 P2、白名单表非空(已执行001_001) | S1、POST /auth/v1/importIMEIList，operation=firstImport(表已非空) | E1、响应code=-1，msg含"already exists" | Level 1 |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_001_003 | 功能点：白名单导出验证 | P1、GIDS服务已启动 P2、白名单已导入 | S1、GET /auth/v1/exportIMEIList | E1、HTTP状态码200 E2、Content-Type:text/csv E3、CSV含IMEI和IMSI两列数据 | Level 0 |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_001_004 | 功能点：白名单更新导入(update覆盖) | P1、GIDS服务已启动 P2、白名单已导入 | S1、POST /auth/v1/importIMEIList，上传新CSV(IMEI+IMSI两列)，operation=update | E1、响应code=200，msg=success | Level 0 |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_001_005 | 功能点：更新后导出验证非空 | P1、GIDS服务已启动 P2、已执行update导入 | S1、GET /auth/v1/exportIMEIList | E1、HTTP状态码200 E2、CSV非空，含IMEI+IMSI条目 | Level 1 |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_001_006 | 功能点：CSV校验-IMEI非15位数字拒绝 | P1、GIDS服务已启动 P2、白名单表为空 | S1、POST /auth/v1/importIMEIList，上传CSV含IMEI为14位/16位/含字母，operation=firstImport | E1、响应code=-1，校验失败拒绝整批 | Level 1 |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_001_007 | 功能点：CSV校验-IMSI非15位数字拒绝 | P1、GIDS服务已启动 P2、白名单表为空 | S1、POST /auth/v1/importIMEIList，上传CSV含IMSI为14位/16位/含字母，operation=firstImport | E1、响应code=-1，校验失败拒绝整批 | Level 1 |
+| IMEI+IMSI联合鉴权 | | | | | | | | | |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_002_001 | 功能点：IMEI+IMSI同时命中白名单鉴权通过 | P1、GIDS服务已启动 P2、白名单已导入(执行TC_001) P3、IMEI 6258412454025411与IMSI 460011234567890均在白名单同一记录 | S1、POST /auth/v1/authIMEI，body{"IMEI":"6258412454025411","IMSI":"460011234567890"} | E1、响应code=200 | Level 0 |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_002_002 | 功能点：IMEI命中但IMSI未命中鉴权拒绝 | P1、GIDS服务已启动 P2、白名单已导入 P3、IMEI 6258412454025411在白名单，但IMSI 460019999999999不在白名单 | S1、POST /auth/v1/authIMEI，body{"IMEI":"6258412454025411","IMSI":"460019999999999"} | E1、响应code=401 | Level 0 |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_002_003 | 功能点：IMSI命中但IMEI未命中鉴权拒绝 | P1、GIDS服务已启动 P2、白名单已导入 P3、IMSI 460011234567890在白名单，但IMEI 6258412454025999不在白名单 | S1、POST /auth/v1/authIMEI，body{"IMEI":"6258412454025999","IMSI":"460011234567890"} | E1、响应code=401 | Level 0 |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_002_004 | 功能点：IMEI与IMSI均不在白名单鉴权拒绝 | P1、GIDS服务已启动 P2、白名单已导入 P3、IMEI 6258412454025999与IMSI 460019999999999均不在白名单 | S1、POST /auth/v1/authIMEI，body{"IMEI":"6258412454025999","IMSI":"460019999999999"} | E1、响应code=401 | Level 0 |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_002_005 | 功能点：IMEI缺失参数错误 | P1、GIDS服务已启动 P2、白名单已导入 | S1、POST /auth/v1/authIMEI，body{"IMSI":"460011234567890"}(无IMEI) | E1、响应code=-2，msg含"invalid IMEI" | Level 1 |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_002_006 | 功能点：IMSI缺失参数错误 | P1、GIDS服务已启动 P2、白名单已导入 | S1、POST /auth/v1/authIMEI，body{"IMEI":"6258412454025411"}(无IMSI) | E1、响应code=-2，msg含"invalid IMSI" | Level 1 |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_002_007 | 功能点：IMEI非15位纯数字参数错误 | P1、GIDS服务已启动 P2、白名单已导入 | S1、POST /auth/v1/authIMEI，body{"IMEI":"6258412454025ABC","IMSI":"460011234567890"} | E1、响应code=-2，msg含"invalid IMEI" | Level 1 |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_002_008 | 功能点：IMSI非15位纯数字参数错误 | P1、GIDS服务已启动 P2、白名单已导入 | S1、POST /auth/v1/authIMEI，body{"IMEI":"6258412454025411","IMSI":"46001ABC4567890"} | E1、响应code=-2，msg含"invalid IMSI" | Level 1 |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_002_009 | 功能点：逃生态-白名单表为空时放行 | P1、GIDS服务已启动 P2、白名单表为空(全新gids.db) | S1、POST /auth/v1/authIMEI，body{"IMEI":"6258412454025411","IMSI":"460011234567890"} | E1、响应code=200(逃生态放行) | Level 0 |
+| 登录链路鉴权 | | | | | | | | | |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_003_001 | 功能点：gridLoginAuth联合鉴权通过(IMEI+IMSI均命中) | P1、GIDS服务已启动 P2、白名单已导入(执行TC_001) P3、IMEI 6258412454025411与IMSI 460011234567890均在白名单 | S1、POST /app-api/devicetcp/app/login/v1/gridLoginAuth，body含IMEI=6258412454025411、IMSI=460011234567890等字段 | E1、响应code=200 | Level 0 |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_003_002 | 功能点：gridLoginAuth联合鉴权拒绝(IMSI不匹配) | P1、GIDS服务已启动 P2、白名单已导入 P3、IMEI命中但IMSI 460019999999999不在白名单 | S1、POST /app-api/devicetcp/app/login/v1/gridLoginAuth，IMEI=6258412454025411、IMSI=460019999999999 | E1、响应code=-2，msg含"not allowed" | Level 0 |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_003_003 | 功能点：gridLoginAuthOpenBrowser联合鉴权通过 | P1、GIDS服务已启动 P2、白名单已导入 P3、IMEI+IMSI均在白名单 | S1、POST /app-api/devicetcp/app/login/v1/gridLoginAuthOpenBrowser，IMEI=6258412454025411、IMSI=460011234567890 | E1、响应code=200 | Level 0 |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_003_004 | 功能点：gridLoginAuthOpenBrowser联合鉴权拒绝(IMEI不匹配) | P1、GIDS服务已启动 P2、白名单已导入 P3、IMEI 6258412454025999不在白名单 | S1、POST /app-api/devicetcp/app/login/v1/gridLoginAuthOpenBrowser，IMEI=6258412454025999、IMSI=460011234567890 | E1、响应code=-2，msg含"not allowed" | Level 0 |
+| 事件上报鉴权 | | | | | | | | | |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_004_001 | 功能点：sendClientEvent联合鉴权通过(IMEI+IMSI均命中) | P1、GIDS服务已启动 P2、白名单已导入(执行TC_001) P3、IMEI+IMSI均在白名单 | S1、POST /app-api/center/public/client/sendClientEvent，body含IMEI=6258412454025411、IMSI=460011234567890 | E1、响应code=200 | Level 0 |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_004_002 | 功能点：sendClientEvent联合鉴权拒绝(IMSI不匹配) | P1、GIDS服务已启动 P2、白名单已导入 P3、IMEI命中但IMSI不在白名单 | S1、POST /app-api/center/public/client/sendClientEvent，IMEI=6258412454025411、IMSI=460019999999999 | E1、响应code=401，msg含"Unauthorized" | Level 0 |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_004_003 | 功能点：sendAppUseTimesEvent联合鉴权通过 | P1、GIDS服务已启动 P2、白名单已导入 P3、IMEI+IMSI均在白名单 | S1、POST /app-api/center/public/client/sendAppUseTimesEvent，IMEI=6258412454025411、IMSI=460011234567890 | E1、响应code=200 | Level 0 |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_004_004 | 功能点：sendAppUseTimesEvent联合鉴权拒绝(IMEI不匹配) | P1、GIDS服务已启动 P2、白名单已导入 P3、IMEI不在白名单 | S1、POST /app-api/center/public/client/sendAppUseTimesEvent，IMEI=6258412454025999、IMSI=460011234567890 | E1、响应code=401，msg含"Unauthorized" | Level 0 |
+| 边界与缓存覆盖 | | | | | | | | | |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_005_001 | 功能点：IMEI空字符串参数错误 | P1、GIDS服务已启动 P2、白名单已导入 | S1、POST /auth/v1/authIMEI，body{"IMEI":"","IMSI":"460011234567890"} | E1、响应code=-2，msg含"invalid IMEI" | Level 1 |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_005_002 | 功能点：IMSI空字符串参数错误 | P1、GIDS服务已启动 P2、白名单已导入 | S1、POST /auth/v1/authIMEI，body{"IMEI":"6258412454025411","IMSI":""} | E1、响应code=-2，msg含"invalid IMSI" | Level 1 |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_005_003 | 功能点：deviceLoginAuth联合鉴权通过 | P1、GIDS服务已启动 P2、白名单已导入(执行TC_001) P3、IMEI+IMSI均在白名单 | S1、POST /app-api/devicetcp/app/login/v1/deviceLoginAuth，body含IMEI=6258412454025411、IMSI=460011234567890(AppType=1) | E1、响应code=200 | Level 1 |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_005_004 | 功能点：deviceLoginAuth联合鉴权拒绝(IMSI不匹配) | P1、GIDS服务已启动 P2、白名单已导入 P3、IMEI命中但IMSI不在白名单 | S1、POST /app-api/devicetcp/app/login/v1/deviceLoginAuth，IMEI=6258412454025411、IMSI=460019999999999 | E1、响应code=-2，msg含"not allowed" | Level 1 |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_005_005 | 功能点：缓存命中后重复鉴权直接返回 | P1、GIDS服务已启动 P2、白名单已导入 P3、首次鉴权已通过(IMEI+IMSI命中) | S1、相同IMEI+IMSI再次POST /auth/v1/authIMEI | E1、响应code=200(缓存命中，无DB访问) | Level 1 |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_005_006 | 功能点：缓存未命中后重复鉴权仍返回拒绝 | P1、GIDS服务已启动 P2、白名单已导入 P3、首次鉴权已拒绝(IMEI+IMSI未命中) | S1、相同IMEI+IMSI再次POST /auth/v1/authIMEI | E1、响应code=401(缓存命中false结果，无DB访问) | Level 1 |
+| | | TRUE | | TC_SBG_Func_GIDS_Auth_005_007 | 功能点：逃生态-白名单导入后逃生态失效 | P1、GIDS服务已启动 P2、白名单已导入(逃生态结束) P3、IMEI+IMSI不在白名单 | S1、POST /auth/v1/authIMEI，body{"IMEI":"6258412454025999","IMSI":"460019999999999"} | E1、响应code=401(逃生态已关闭，正常鉴权拒绝) | Level 0 |

@@ -1,0 +1,66 @@
+---
+APPLICATION_ID: CSP #optional
+
+cse:
+  service:
+    registry:
+      #disabled: false           optional:禁用注册发现选项，默认开始注册发现
+      type: servicecenter           #optional:可选zookeeper/servicecenter，zookeeper供中软使用，不配置的情况下默认为servicecenter
+      scope: full                   #optional:scope不为full时，只允许在本app间访问，不允许跨app访问；为full就是注册时允许跨app，并且发现本租户全部微服务
+      address: https://cse-service-center.manage:30100 #本地运行填http://127.0.0.1:30100
+      #address: http://127.0.0.1:30100
+      #register: manual          optional：register不配置时默认为自动注册，可选参数有自动注册auto和手动注册manual
+      refeshInterval : 30s
+      timeout : 4s
+      watch: true
+      autodiscovery : true
+      api:
+        version: v4
+  protocols:
+    rest:
+      listenAddress: 127.0.0.1:9093
+      advertiseAddress: 127.0.0.1:9090
+      transport: tcp #optional 指定加载那个传输层
+      workerNumber: 10
+      failure: http_500,http_502 # Defines what is considered an unsuccessful attempt of communication with a server.
+  handler:
+    chain:
+      Consumer:
+        default: loadbalance,transport
+      Provider:
+        default: ""
+  references:    #optional：配置客户端依赖的微服务信息，协议信息
+    OM_MGR:
+      version: 0+
+      transport: rest
+    ModuleKeeper:
+      version: 0+
+      transport: rest
+    GaussDB:
+      version: 0+
+      transport: rest
+    OpsAgent:
+      version: 0+
+      transport: rest
+    FMService:
+      version: 0+
+      transport: rest
+    PaaSBroker:
+      version: 0+
+      transport: rest
+    CSPAOD:
+      version: 0+
+      transport: rest
+    AuditLog:
+      version: 0+
+      transport: rest
+    Privilege:
+      version: 0+
+      transport: rest
+arb_configuration:
+  arbType: 1  # 仲裁类型，0负荷分担，1主备仲裁，默认值0
+  fastheartbeat:
+    FastHeartbeatOpen: true   # 是否开启快心跳，默认开启
+  HTimeSec: 1  # 心跳间隔，默认为1
+  HTimeNum: 25  # 快心跳失败阈值，默认为10
+  needReboot: 1

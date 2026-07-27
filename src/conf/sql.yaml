@@ -1,0 +1,34 @@
+# config/sql.yaml
+queries:
+  getOnline:
+    sql: "SELECT 'default_obj' as obj, COUNT(DISTINCT session_id) AS cnt
+FROM t_session_stats
+WHERE 
+(finished_at IS NOT NULL AND finished_at > ? AND started_at < ?)
+OR (finished_at IS NULL AND ((started_at::TIMESTAMP + INTERVAL '24 HOURS') > ?) AND started_at < ?)
+HAVING cnt > 0;"
+    params: [startTime, endTime, startTime, endTime]
+  getOnlineOfModel:
+    sql: "SELECT concat(u.manufacturer, '_', u.model) AS obj, COUNT(DISTINCT s.session_id) AS cnt
+FROM t_session_stats s 
+JOIN t_user u ON s.session_id = u.key
+WHERE 
+(s.finished_at IS NOT NULL AND s.finished_at > ? AND s.started_at < ?)
+OR (s.finished_at IS NULL AND (s.started_at::TIMESTAMP + INTERVAL '24 HOURS') > ? AND s.started_at < ?)
+GROUP BY concat(u.manufacturer, '_', u.model);"
+    params: [startTime, endTime, startTime, endTime]
+  getOnlineOfInstance:
+    sql: "SELECT ub.browser_instance AS obj, COUNT(DISTINCT ss.session_id) AS cnt
+FROM t_session_stats ss
+JOIN t_user_bind ub ON ss.session_id = ub.key
+WHERE 
+(ss.finished_at IS NOT NULL AND ss.finished_at > ? AND ss.started_at < ?)
+OR (ss.finished_at IS NULL AND (ss.started_at::TIMESTAMP + INTERVAL '24 HOURS') > ? AND ss.started_at < ?)
+GROUP BY ub.browser_instance;"
+    params: [startTime, endTime, startTime, endTime]
+  getTrafficOfApp:
+    sql: "SELECT app_type as obj, ROUND(SUM(out_bytes)/1024/1024, 3) AS cnt FROM (SELECT session_id, app_type, started_at, finished_at, out_bytes FROM t_media_traffic_stats WHERE finished_at BETWEEN ? AND ? UNION ALL SELECT session_id, app_type, started_at, finished_at, out_bytes FROM t_control_traffic_stats WHERE finished_at BETWEEN ? AND ?) AS combined_stats GROUP BY app_type HAVING cnt > 0"
+    params: [startTime, endTime, startTime, endTime]
+  getTraffic:
+    sql: "SELECT 'default_obj' as obj, ROUND(SUM(out_bytes)/1024/1024, 3) AS cnt FROM (SELECT SUM(out_bytes) AS out_bytes FROM t_media_traffic_stats WHERE finished_at BETWEEN ? AND ? UNION ALL SELECT SUM(out_bytes) AS out_bytes FROM t_control_traffic_stats WHERE finished_at BETWEEN ? AND ?) AS combined_stats HAVING SUM(out_bytes) > 0"
+    params: [startTime, endTime, startTime, endTime]

@@ -1,0 +1,151 @@
+{
+  "APIService": {
+    "default": [
+      {
+        "type": "concurrent_limit",
+        "mode": "local",
+        "time_unit": "second",
+        "time_interval": 1,
+        "rate_limit": 400
+      }
+    ],
+    "override": {
+      "^/.*": [
+        {
+          "type": "concurrent_limit",
+          "mode": "local",
+          "time_unit": "second",
+          "time_interval": 1,
+          "rate_limit": 400
+        }
+      ],
+      "^/auth/v1/exportIMEILis/GET$": [
+        {
+          "type": "concurrent_limit",
+          "mode": "local",
+          "time_unit": "second",
+          "time_interval": 1,
+          "rate_limit": 5
+        }
+      ],
+      "^/auth/v1/importIMEIList/POST$": [
+        {
+          "type": "concurrent_limit",
+          "mode": "local",
+          "time_unit": "second",
+          "time_interval": 1,
+          "rate_limit": 5
+        }
+      ],
+      "^/auth/v1/authIMEI/POST$": [
+        {
+          "type": "concurrent_limit",
+          "mode": "local",
+          "time_unit": "second",
+          "time_interval": 1,
+          "rate_limit": 200
+        }
+      ],
+      "^/app-api/devicetcp/cache/deleteCache/POST$": [
+        {
+          "type": "concurrent_limit",
+          "mode": "local",
+          "time_unit": "second",
+          "time_interval": 1,
+          "rate_limit": 200
+        }
+      ],
+      "^/app-api/center/public/client/.*$": [
+        {
+          "type": "concurrent_limit",
+          "mode": "local",
+          "time_unit": "second",
+          "time_interval": 1,
+          "rate_limit": 400
+        }
+      ],
+      "^/app-api/control/file/.*$": [
+        {
+          "type": "concurrent_limit",
+          "mode": "local",
+          "time_unit": "second",
+          "time_interval": 1,
+          "rate_limit": 100
+        }
+      ],
+      "^/file/v1/.*$": [
+        {
+          "type": "concurrent_limit",
+          "mode": "local",
+          "time_unit": "second",
+          "time_interval": 1,
+          "rate_limit": 200
+        }
+      ],
+      "^/app-api/devicetcp/app/login/v1/.*$": [
+        {
+          "type": "concurrent_limit",
+          "mode": "local",
+          "time_unit": "second",
+          "time_interval": 1,
+          "rate_limit": 500
+        }
+      ],
+      "^/user-bind/v1/.*$": [
+        {
+          "type": "concurrent_limit",
+          "mode": "local",
+          "time_unit": "second",
+          "time_interval": 1,
+          "rate_limit": 200
+        }
+      ],
+      "^/user-bind/v1/update/POST$": [
+        {
+          "type": "concurrent_limit",
+          "mode": "local",
+          "time_unit": "second",
+          "time_interval": 1,
+          "rate_limit": 200
+        }
+      ],
+      "^/rpc-api/center/config/syncBrowserConfig/POST$": [
+        {
+          "type": "concurrent_limit",
+          "mode": "local",
+          "time_unit": "second",
+          "time_interval": 1,
+          "rate_limit": 5
+        }
+      ],
+      "^/config/v1/GET$": [
+        {
+          "type": "concurrent_limit",
+          "mode": "local",
+          "time_unit": "second",
+          "time_interval": 1,
+          "rate_limit": 200
+        }
+      ],
+      "^/plugin/v1/.*$": [
+        {
+          "type": "concurrent_limit",
+          "mode": "local",
+          "time_unit": "second",
+          "time_interval": 1,
+          "rate_limit": 50
+        }
+      ],
+      "^/stats/v1/.*$": [
+        {
+          "type": "concurrent_limit",
+          "mode": "local",
+          "time_unit": "second",
+          "time_interval": 1,
+          "rate_limit": 500
+        }
+      ]
+
+    }
+  }
+}

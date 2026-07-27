@@ -1,0 +1,147 @@
+ #本地运行注释整个文件内容
+ ssl:
+   registry.Consumer.cipherPlugin: aes
+   registry.Consumer.verifyPeer: true
+   registry.Consumer.cipherSuits: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384,TLS_CHACHA20_POLY1305_SHA256
+   registry.Consumer.protocol: TLSv1.2
+   registry.Consumer.caFile: /opt/csp/gids/cert/ca.crt
+   registry.Consumer.certFile: /opt/csp/gids/cert/tls.crt
+   registry.Consumer.keyFile: /opt/csp/gids/cert/tls.key.pwd
+   registry.Consumer.certPwdFile: /opt/csp/gids/cert/pwd
+#   rest.Provider.cipherPlugin: aes
+#   rest.Provider.verifyPeer: true
+#   rest.Provider.cipherSuits: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384,TLS_CHACHA20_POLY1305_SHA256
+#   rest.Provider.protocol: TLSv1.2
+#   rest.Provider.keyFile: /opt/csp/gids/cert/tls.key.pwd
+#   rest.Provider.certFile: /opt/csp/gids/cert/tls.crt
+#   rest.Provider.certPwdFile: /opt/csp/gids/cert/pwd
+#   rest.Provider.caFile: /opt/csp/gids/cert/ca.crt
+   gids.rest.Consumer.cipherPlugin: aes
+   gids.rest.Consumer.verifyPeer: true
+   gids.rest.Consumer.cipherSuits: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384,TLS_CHACHA20_POLY1305_SHA256
+   gids.rest.Consumer.protocol: TLSv1.2
+   gids.rest.Consumer.keyFile: /opt/csp/gids/cert/tls.key.pwd
+   gids.rest.Consumer.certFile: /opt/csp/gids/cert/tls.crt
+   gids.rest.Consumer.certPwdFile: /opt/csp/gids/cert/pwd
+   gids.rest.Consumer.caFile: /opt/csp/gids/cert/ca.crt
+   gids.rest.Provider.cipherPlugin: aes
+   gids.rest.Provider.verifyPeer: true
+   gids.rest.Provider.cipherSuits: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384,TLS_CHACHA20_POLY1305_SHA256
+   gids.rest.Provider.protocol: TLSv1.2
+   gids.rest.Provider.keyFile: /opt/csp/gids/cert/tls.key.pwd
+   gids.rest.Provider.certFile: /opt/csp/gids/cert/tls.crt
+   gids.rest.Provider.certPwdFile: /opt/csp/gids/cert/pwd
+   gids.rest.Provider.caFile: /opt/csp/gids/cert/ca.crt
+   AgentManager.rest.Consumer.cipherPlugin: aes
+   AgentManager.rest.Consumer.verifyPeer: true
+   AgentManager.rest.Consumer.cipherSuits: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384,TLS_CHACHA20_POLY1305_SHA256
+   AgentManager.rest.Consumer.protocol: TLSv1.2
+   AgentManager.rest.Consumer.keyFile: /opt/csp/gids/cert/tls.key.pwd
+   AgentManager.rest.Consumer.certFile: /opt/csp/gids/cert/tls.crt
+   AgentManager.rest.Consumer.certPwdFile: /opt/csp/gids/cert/pwd
+   AgentManager.rest.Consumer.caFile: /opt/csp/gids/cert/ca.crt
+   ModuleKeeper.rest.Consumer.cipherPlugin: aes
+   ModuleKeeper.rest.Consumer.verifyPeer: true
+   ModuleKeeper.rest.Consumer.cipherSuits: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384,TLS_CHACHA20_POLY1305_SHA256
+   ModuleKeeper.rest.Consumer.protocol: TLSv1.2
+   ModuleKeeper.rest.Consumer.keyFile: /opt/csp/gids/cert/tls.key.pwd
+   ModuleKeeper.rest.Consumer.certFile: /opt/csp/gids/cert/tls.crt
+   ModuleKeeper.rest.Consumer.certPwdFile: /opt/csp/gids/cert/pwd
+   ModuleKeeper.rest.Consumer.caFile: /opt/csp/gids/cert/ca.crt
+   OM_MGR.rest.Consumer.cipherPlugin: aes
+   OM_MGR.rest.Consumer.verifyPeer: true
+   OM_MGR.rest.Consumer.cipherSuits: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384,TLS_CHACHA20_POLY1305_SHA256
+   OM_MGR.rest.Consumer.protocol: TLSv1.2
+   OM_MGR.rest.Consumer.keyFile: /opt/csp/gids/cert/tls.key.pwd
+   OM_MGR.rest.Consumer.certFile: /opt/csp/gids/cert/tls.crt
+   OM_MGR.rest.Consumer.certPwdFile: /opt/csp/gids/cert/pwd
+   OM_MGR.rest.Consumer.caFile: /opt/csp/gids/cert/ca.crt
+
+   Transport.rest.Provider.cipherPlugin: aes
+   Transport.rest.Provider.verifyPeer: true
+   Transport.rest.Provider.cipherSuits: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384,TLS_CHACHA20_POLY1305_SHA256
+   Transport.rest.Provider.protocol: TLSv1.2
+   Transport.rest.Provider.keyFile: /opt/csp/gids/cert/tls.key.pwd
+   Transport.rest.Provider.certFile: /opt/csp/gids/cert/tls.crt
+   Transport.rest.Provider.certPwdFile: /opt/csp/gids/cert/pwd
+   Transport.rest.Provider.caFile: /opt/csp/gids/cert/ca.crt
+
+   Transport.rest.Consumer.cipherPlugin: aes
+   Transport.rest.Consumer.verifyPeer: true
+   Transport.rest.Consumer.cipherSuits: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384,TLS_CHACHA20_POLY1305_SHA256
+   Transport.rest.Consumer.protocol: TLSv1.2
+   Transport.rest.Consumer.keyFile: /opt/csp/gids/cert/tls.key.pwd
+   Transport.rest.Consumer.certFile: /opt/csp/gids/cert/tls.crt
+   Transport.rest.Consumer.certPwdFile: /opt/csp/gids/cert/pwd
+   Transport.rest.Consumer.caFile: /opt/csp/gids/cert/ca.crt
+   configcenter.Consumer.cipherPlugin: aes
+   configcenter.Consumer.verifyPeer: true
+   configcenter.Consumer.cipherSuits: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384,TLS_CHACHA20_POLY1305_SHA256
+   configcenter.Consumer.protocol: TLSv1.2
+   configcenter.Consumer.caFile: /opt/csp/gids/cert/ca.crt
+   configcenter.Consumer.certFile: /opt/csp/gids/cert/tls.crt
+   configcenter.Consumer.keyFile: /opt/csp/gids/cert/tls.key.pwd
+   configcenter.Consumer.certPwdFile: /opt/csp/gids/cert/pwd
+
+   FMService.rest.Consumer.cipherPlugin: aes
+   FMService.rest.Consumer.verifyPeer: true
+   FMService.rest.Consumer.cipherSuits: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384,TLS_CHACHA20_POLY1305_SHA256
+   FMService.rest.Consumer.protocol: TLSv1.2
+   FMService.rest.Consumer.keyFile: /opt/csp/gids/cert/tls.key.pwd
+   FMService.rest.Consumer.certFile: /opt/csp/gids/cert/tls.crt
+   FMService.rest.Consumer.certPwdFile: /opt/csp/gids/cert/pwd
+   FMService.rest.Consumer.caFile: /opt/csp/gids/cert/ca.crt
+
+   AuditLog.rest.Consumer.cipherPlugin: aes
+   AuditLog.rest.Consumer.verifyPeer: true
+   AuditLog.rest.Consumer.cipherSuits: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384,TLS_CHACHA20_POLY1305_SHA256
+   AuditLog.rest.Consumer.protocol: TLSv1.2
+   AuditLog.rest.Consumer.keyFile: /opt/csp/gids/cert/tls.key.pwd
+   AuditLog.rest.Consumer.certFile: /opt/csp/gids/cert/tls.crt
+   AuditLog.rest.Consumer.certPwdFile: /opt/csp/gids/cert/pwd
+   AuditLog.rest.Consumer.caFile: /opt/csp/gids/cert/ca.crt
+
+   Privilege.rest.Consumer.cipherPlugin: aes
+   Privilege.rest.Consumer.verifyPeer: true
+   Privilege.rest.Consumer.cipherSuits: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384,TLS_CHACHA20_POLY1305_SHA256
+   Privilege.rest.Consumer.protocol: TLSv1.2
+   Privilege.rest.Consumer.keyFile: /opt/csp/gids/cert/tls.key.pwd
+   Privilege.rest.Consumer.certFile: /opt/csp/gids/cert/tls.crt
+   Privilege.rest.Consumer.certPwdFile: /opt/csp/gids/cert/pwd
+   Privilege.rest.Consumer.caFile: /opt/csp/gids/cert/ca.crt
+
+   BackupMgr.rest.Consumer.cipherPlugin: aes
+   BackupMgr.rest.Consumer.verifyPeer: true
+   BackupMgr.rest.Consumer.cipherSuits: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384,TLS_CHACHA20_POLY1305_SHA256
+   BackupMgr.rest.Consumer.protocol: TLSv1.2
+   BackupMgr.rest.Consumer.keyFile: /opt/csp/gids/cert/tls.key.pwd
+   BackupMgr.rest.Consumer.certFile: /opt/csp/gids/cert/tls.crt
+   BackupMgr.rest.Consumer.certPwdFile: /opt/csp/gids/cert/pwd
+   BackupMgr.rest.Consumer.caFile: /opt/csp/gids/cert/ca.crt
+
+   Deploy_Mgr.rest.Consumer.cipherPlugin: aes
+   Deploy_Mgr.rest.Consumer.verifyPeer: true
+   Deploy_Mgr.rest.Consumer.cipherSuits: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384,TLS_CHACHA20_POLY1305_SHA256
+   Deploy_Mgr.rest.Consumer.protocol: TLSv1.2
+   Deploy_Mgr.rest.Consumer.keyFile: /opt/csp/gids/cert/tls.key.pwd
+   Deploy_Mgr.rest.Consumer.certFile: /opt/csp/gids/cert/tls.crt
+   Deploy_Mgr.rest.Consumer.certPwdFile: /opt/csp/gids/cert/pwd
+   Deploy_Mgr.rest.Consumer.caFile: /opt/csp/gids/cert/ca.crt
+
+   OMCache.rest.Consumer.cipherPlugin: aes
+   OMCache.rest.Consumer.verifyPeer: true
+   OMCache.rest.Consumer.cipherSuits: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384,TLS_CHACHA20_POLY1305_SHA256
+   OMCache.rest.Consumer.protocol: TLSv1.2
+   OMCache.rest.Consumer.keyFile: /opt/csp/gids/cert/tls.key.pwd
+   OMCache.rest.Consumer.certFile: /opt/csp/gids/cert/tls.crt
+   OMCache.rest.Consumer.certPwdFile: /opt/csp/gids/cert/pwd
+   OMCache.rest.Consumer.caFile: /opt/csp/gids/cert/ca.crt
+
+   PMSMgr.rest.Consumer.cipherPlugin: aes
+   PMSMgr.rest.Consumer.verifyPeer: true
+   PMSMgr.rest.Consumer.cipherSuits: TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384,TLS_CHACHA20_POLY1305_SHA256
+   PMSMgr.rest.Consumer.protocol: TLSv1.2
+   PMSMgr.rest.Consumer.keyFile: /opt/csp/gids/cert/tls.key.pwd
+   PMSMgr.rest.Consumer.certFile: /opt/csp/gids/cert/tls.crt
+   PMSMgr.rest.Consumer.certPwdFile: /opt/csp/gids/cert/pwd
+   PMSMgr.rest.Consumer.caFile: /opt/csp/gids/cert/ca.crt

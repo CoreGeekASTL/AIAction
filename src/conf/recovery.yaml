@@ -1,0 +1,4 @@
+---
+# 服务治理健康检查以及服务软复位的功能
+# bool: |true|false
+healthcheck: true
