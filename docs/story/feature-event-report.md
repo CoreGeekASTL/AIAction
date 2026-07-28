@@ -1,160 +1,169 @@
 # 事件上报
 
-> 功能域概述：接收云浏览器客户端上报的客户端异常事件与应用使用时长事件，封装为统一事件信封后经事件存储工厂写入本地事件日志文件（auditlog 组件落盘，不对外转发）。
-> 接口数：2（外部 2 / 内部 2，同一 Controller 双侧注册）　核心模块：controllers.EventController, service.EventService, common/event（Storage/StorageFactory + localEventStorage）
+> 功能域概述：接收云浏览器客户端上报的异常事件与应用使用时长事件，组装为标准业务事件后写入本地滚动事件日志文件留痕。
+> 接口数：2（外部 2 / 内部 2，同一路由双监听同注册）　核心模块：controllers, service, common/event, models
 
 ## 1. 功能故事（多彩建模）
 
-实现逻辑速览：
-- 收到上报后按事件类型装配成统一格式。
-- 逐行写入本地滚动日志文件，超限自动切分存档。
-- 入参不做校验，客户端字段原样落盘。
+实现逻辑速览（1~3 句，每句 ≤30 字，业务语言，禁文件名/函数名/行号）：
+
+客户端上报事件，服务端不校验字段直接受理。请求参数被组装成带类型描述的标准事件。事件以 JSON 追加进本地日志文件，超限自动滚动压缩。
 
 ```mermaid
 flowchart LR
-    classDef mi fill:#ffd1dc,stroke:#c2185b,color:#880e4f
-    classDef role fill:#fff3b0,stroke:#f9a825,color:#5d4037
-    classDef ppt fill:#c8e6c9,stroke:#388e3c,color:#1b5e20
-    classDef desc fill:#bbdefb,stroke:#1976d2,color:#0d47a1
+  classDef mi fill:#ffd1dc,stroke:#c2185b,color:#000
+  classDef role fill:#fff3b0,stroke:#f9a825,color:#000
+  classDef ppt fill:#c8e6c9,stroke:#2e7d32,color:#000
+  classDef desc fill:#bbdefb,stroke:#1565c0,color:#000
 
-    Client["云浏览器客户端（外部系统）"]:::role
-    Gids["GIDS 本服务"]:::role
-    Audit["auditlog 日志框架"]:::role
+  Caller[云浏览器客户端]:::role
+  E1[受理上报请求]:::mi
+  E2[组装标准业务事件]:::mi
+  E3[事件写入日志文件]:::mi
+  E4[返回受理结果]:::mi
+  Req[(上报参数<br/>无字段校验)]:::ppt
+  File[(事件日志文件<br/>空→有内容，超限→转储zip)]:::ppt
+  Resp[(受理回执<br/>成功 data:true)]:::ppt
+  R1[无鉴权，仅过载限流]:::desc
+  R2[单文件超20MB滚动压缩，最多留5份、90天]:::desc
+  R3[文件不可写时降级写控制台]:::desc
 
-    E1["事件：客户端异常上报<br/>触发者：云浏览器客户端<br/>输入：终端厂商/型号、IMEI、异常类型<br/>输出：客户端异常事件<br/>后继：按类型装配统一事件"]:::mi
-    E2["事件：应用使用时长上报<br/>触发者：云浏览器客户端<br/>输入：使用时长、应用标识、分辨率<br/>输出：使用时长事件<br/>后继：按类型装配统一事件"]:::mi
-    E3["事件：按类型装配统一事件<br/>触发者：GIDS 本服务<br/>输入：上报参数<br/>输出：统一格式的事件记录<br/>后继：写入本地审计存储"]:::mi
-    E4["事件：写入本地审计存储<br/>触发者：GIDS 本服务<br/>输入：统一格式事件的一行文本<br/>输出：滚动日志文件追加一行<br/>后继：超限时滚动切分并清理旧文件"]:::mi
-
-    Rec["事件记录"]:::ppt
-    LogFile["滚动日志文件"]:::ppt
-
-    R1["规则：事件类型须预注册才能装配"]:::desc
-    R2["规则：单文件超 20MB 滚动切分<br/>转储最多留 5 份、保留 90 天"]:::desc
-    R3["规则：入参校验为空实现<br/>客户端字段原样透传落盘"]:::desc
-
-    Client --> E1
-    Client --> E2
-    E1 --> E3
-    E2 --> E3
-    Gids --> E3
-    E3 --> Rec
-    Gids --> E4
-    Rec --> E4
-    E4 --> Audit
-    Audit --> LogFile
-    R1 -.约束.-> E3
-    R2 -.约束.-> E4
-    R3 -.约束.-> E1
-    R3 -.约束.-> E2
+  Caller --> E1
+  Req --> E1
+  E1 --> E2 --> E3 --> E4
+  E3 -.追加写.-> File
+  E4 --> Resp
+  R1 -.约束.-> E1
+  R2 -.约束.-> File
+  R3 -.约束.-> E3
 ```
 
-### 术语表
+术语表：
 
 | 术语 | 人话解释 | 出处 |
-| --- | --- | --- |
-| 事件信封（events.Info） | 所有事件共用的外层包装：事件名、时间、来源服务固定为 GIDS，载荷挂在 EventData 上 | src/models/events/base.go |
-| 事件描述表（eventTypeMap） | 事件类型到名称/描述/触发方的登记表，新类型必须先登记才能被装配 | src/models/events/base.go |
-| 事件存储工厂（StorageFactory） | 按字符串名字挑选存储实现的注册表，当前只注册了本地文件这一种 | src/common/event/event_storage.go |
-| 本地审计存储（localEventStorage） | 把事件逐行追加写进本地日志文件的实现，文件不可用时降级打到控制台 | src/common/event/local_storage.go |
-| 滚动切分（rollOver） | 单文件超过 20MB 时把旧内容压缩成 zip 存档、清空原文件继续写 | src/common/event/local_storage.go |
-| 转储文件清理（FileDeleter） | 定期删掉过期存档：最多留 5 份、最多保留 90 天 | src/common/event/local_storage.go |
-| 事件文件路径（EventFile） | 启动参数指定事件日志写到哪个文件 | src/common/conf/config.go |
-| 双侧注册 | 同一组接口同时挂在对外端口和对内 127.0.0.1:9090 端口上 | src/routers/beego_router.go |
-| 空校验（Validate） | 请求结构自带的校验方法是空函数，收到什么字段就原样落盘 | src/models/req/event_request.go |
-| 事件是否转发到外部审计服务 | 代码中未体现：仅见本地文件/控制台两种去处 | src/common/event/local_storage.go |
+|---|---|---|
+| HSMan | 终端设备厂商名（handset manufacturer） | src/models/req/event_request.go |
+| HSType | 终端设备机型 | src/models/req/event_request.go |
+| IMEI | 国际移动设备识别码，标识一台物理终端 | src/models/req/event_request.go |
+| IMSI | 国际移动用户识别码，标识一张 SIM 卡用户 | src/models/req/event_request.go |
+| AppUseTimes | 应用使用时长，客户端统计某应用用了多久后上报 | src/models/events/base.go |
+| 事件（Event） | 带类型、描述、触发者、时间的业务留痕记录，JSON 落盘 | src/models/events/base.go |
+| 云浏览器（cloud-browser） | 事件归属对象，本仓服务承载的业务名 | src/models/events/base.go |
+| localAuditComponent | 事件存储在工厂里的注册名，当前唯一实现是本地文件存储 | src/service/event_service.go |
+| EventFile | 事件日志文件路径配置项，为空时事件打到标准输出 | src/common/conf/config.go |
+| 过载限流 | 请求量超阈值时直接拒绝并提示稍后重试的全局拦截 | src/controllers/filter.go |
 
 ## 2. 模块划分
 
 ```mermaid
 graph LR
-    R["routers/beego_router.go"] --> C["controllers/event_controller.go"]
-    C --> S["service/event_service.go"]
-    C --> M["models/events/base.go"]
-    C --> Q["models/req/event_request.go"]
-    S --> E["common/event/event_storage.go"]
-    E --> L["common/event/local_storage.go"]
-    L --> A["auditlog.WriterSink 外部库"]
-    L --> M
-    S --> F["common/conf/config.go"]
+  Client[云浏览器客户端] --> Router[routers/beego_router.go<br/>外部+内部双注册]
+  Router --> Filter[controllers/filter.go<br/>过载限流]
+  Router --> Ctrl[controllers/event_controller.go]
+  Ctrl --> Base[controllers/controller.go<br/>请求解析/响应封装]
+  Ctrl --> Svc[service/event_service.go]
+  Svc --> Factory[common/event/event_storage.go<br/>存储工厂]
+  Factory --> Local[common/event/local_storage.go<br/>本地滚动文件存储]
+  Ctrl --> Model[models/events/base.go<br/>事件模型]
+  Svc --> Conf[common/conf/config.go<br/>EventFile 配置]
 ```
 
-| 模块/包 | 承载功能 | 证据 |
-| --- | --- | --- |
-| routers | 双侧（外部+内部 127.0.0.1:9090）注册 EventController | src/routers/beego_router.go |
-| controllers | HTTP 入口：解析请求体、组装事件、调用 EventService | src/controllers/event_controller.go |
-| service | 业务门面：初始化存储工厂、选取存储实现、透传 Record；StorageFactory 按 location 键选实现，仅注册 "localAuditComponent" 且取用键写死为 DefaultEventStorage，无配置化，恒为本地文件存储 | src/service/event_service.go |
-| common/event | 存储抽象与工厂 + 本地文件存储与转储清理 | src/common/event/event_storage.go；src/common/event/local_storage.go |
-| models/events | 事件类型枚举、描述表、统一信封 Info 与载荷结构 | src/models/events/base.go |
-| models/req | 上报请求体结构与校验（空实现） | src/models/req/event_request.go |
+| 模块 | 承载功能（引用文件） |
+|---|---|
+| routers/beego_router.go | 将两个事件接口同时注册到外部与内部两个监听实例，并挂载全局限流过滤器（src/routers/beego_router.go） |
+| controllers/event_controller.go | 路由表声明、请求受理、事件组装、响应封装（src/controllers/event_controller.go） |
+| controllers/controller.go | 请求体 JSON 解析与校验入口、成功/失败响应写回（src/controllers/controller.go） |
+| controllers/filter.go | 全局限流过滤器，过载时返回 429（src/controllers/filter.go） |
+| service/event_service.go | 事件存储工厂初始化与存储选取，转调存储落盘（src/service/event_service.go） |
+| common/event | 存储工厂注册/获取与本地文件存储实现：追加写、超限滚动压缩、定期清理（src/common/event/event_storage.go、src/common/event/local_storage.go） |
+| models/events/base.go | 事件类型枚举、类型描述表、事件通用结构与两种事件数据载荷（src/models/events/base.go） |
+| models/req/event_request.go | 两个上报接口的请求结构，校验恒通过（src/models/req/event_request.go） |
 
 ## 3. 接口清单
 
-### HTTP 接口
+| 接口 | 路径/入口（含注册处） | 请求结构 | 响应结构 | 状态 |
+|---|---|---|---|---|
+| SendClientEvent（上报客户端异常事件） | POST /app-api/center/public/client/sendClientEvent；入口 src/controllers/event_controller.go；注册 src/routers/beego_router.go（外部与内部双注册） | ClientEventRequest（src/models/req/event_request.go）：{hsman, hstype, appType, imei, imsi, type}，Validate 恒通过无必填约束 | DataResponse（src/models/resp/response_entity.go）：{code, msg, data}，成功 code=200、msg="record success"、data=true；失败 code=-2 | 在用 |
+| SendAppUseTimesEvent（上报应用使用时长事件） | POST /app-api/center/public/client/sendAppUseTimesEvent；入口 src/controllers/event_controller.go；注册 src/routers/beego_router.go（外部与内部双注册） | AppUseTimesEvent（src/models/req/event_request.go）：{useTimes, hsman, hstype, exttype, appType, appId, scheight, scwidth, imei, imsi, playMode}，Validate 恒通过无必填约束 | DataResponse（src/models/resp/response_entity.go）：同上约定 | 在用 |
 
-| 接口 | 路径/入口 | 请求结构 | 响应结构 | 状态 |
-| --- | --- | --- | --- | --- |
-| SendClientEvent | POST /app-api/center/public/client/sendClientEvent；路由 src/controllers/event_controller.go；注册 src/routers/beego_router.go；入口 src/controllers/event_controller.go | req.ClientEventRequest（src/models/req/event_request.go） | resp.DataResponse{Code, Message:"record success", Data:true}；失败 400 + retcode.ClientFailed（src/controllers/event_controller.go） | 在用；27.0 起注入终端鉴权（见 feature-terminal-auth.md） |
-| SendAppUseTimesEvent | POST /app-api/center/public/client/sendAppUseTimesEvent；路由 src/controllers/event_controller.go；注册 src/routers/beego_router.go；入口 src/controllers/event_controller.go | req.AppUseTimesEvent（src/models/req/event_request.go） | 同上（src/controllers/event_controller.go） | 在用；27.0 起注入终端鉴权（见 feature-terminal-auth.md） |
+本功能无出向调用：事件仅写本地文件，不调用任何外部服务（src/common/event/local_storage.go）。
 
 ## 4. 关键数据结构
 
 | 结构 | 定义位置 | 关键字段（含义+约束） |
-| --- | --- | --- |
-| events.Info | src/models/events/base.go | EventDesc（内嵌事件名/描述/触发方）；Service 固定 "GIDS"（src/common/constants/base.go）；EventTime 格式 "2006-01-02 15:04:05"；Object 固定 "cloud-browser"；Env/Hostname 恒为空串；EventData interface{} 承载载荷 |
-| events.EventType / eventTypeMap | src/models/events/base.go | 四类事件；本域用 Client="browser_client_error"、AppUseTimes="browser_client_app_use_times" |
-| events.ClientEventData | src/models/events/base.go | HSMan/HSType、AppType、IMEI/IMSI、Type（异常类型）；全字符串无必填约束 |
-| events.AppUseTimesEvent | src/models/events/base.go | UseTimes（时长，字符串）、AppId、EXTType（json tag "exttype"）、SCWidth/SCHeight、PlayMode、IMEI/IMSI；无约束 |
-| req.ClientEventRequest | src/models/req/event_request.go | 同 ClientEventData；Validate 空实现恒 nil |
-| req.AppUseTimesEvent | src/models/req/event_request.go | 同 AppUseTimesEvent；Validate 空实现 |
-| event.FileDeleter | src/common/event/local_storage.go | DayBasedDeleter 保留 90 天（FileRemainDay）；CountBasedDeleter 最多 5 个（FileMaxNum） |
+|---|---|---|
+| ClientEventRequest | src/models/req/event_request.go | hsman（厂商）、hstype（机型）、appType（应用类型）、imei、imsi、type（事件类型）；Validate 恒返回 nil，无必填 |
+| AppUseTimesEvent（请求） | src/models/req/event_request.go | useTimes（使用时长）、appId（应用标识）、scwidth/scheight（屏幕宽高）、playMode（播放模式）等 11 字段；Validate 恒返回 nil |
+| Info（标准事件） | src/models/events/base.go | Event（事件类型串）、EventDesc（中文描述）、EventTrigger（触发者，固定 client）、Service（固定 GIDS）、EventTime（yyyy-MM-dd HH:mm:ss）、Object（固定 cloud-browser）、EventData（载荷） |
+| ClientEventData | src/models/events/base.go | 与 ClientEventRequest 六字段一一对应，作为 Client 类型事件的载荷 |
+| AppUseTimesEvent（载荷） | src/models/events/base.go | 与请求同名字段，作为 AppUseTimes 类型事件的载荷 |
+| DataResponse | src/models/resp/response_entity.go | code（200 成功 / -2 客户端失败）、msg、data（成功固定 true） |
 
 ## 5. 调用关系
 
-以 SendClientEvent 为代表（SendAppUseTimesEvent 同构，src/controllers/event_controller.go）：
+主链路一：上报客户端异常事件
 
 ```mermaid
 sequenceDiagram
-    participant Client
-    participant Router as routers/beego_router.go
-    participant Ctrl as EventController<br/>event_controller.go
-    participant Base as BaseController<br/>controller.go
-    participant Svc as EventServiceImpl<br/>event_service.go
-    participant Fac as StorageFactory<br/>event_storage.go
-    participant Store as localEventStorage<br/>local_storage.go
-    participant Sink as auditlog.WriterSink
-
-    Client->>Router: POST /sendClientEvent
-    Router->>Ctrl: 路由分发（beego_router.go）
-    Ctrl->>Svc: Prepare 中 NewEventService（event_controller.go）
-    Svc->>Fac: sync.Once 注册 localAuditComponent + Get(DefaultEventStorage)<br/>（event_service.go）
-    Ctrl->>Base: RequestBodyUnmarshalTo（event_controller.go）
-    Base->>Base: JSON 反序列化 + Validate（空实现，event_request.go）
-    Ctrl->>Ctrl: events.NewInfo(Client) + SetEventData<br/>（event_controller.go、models/events/base.go）
-    Ctrl->>Svc: ReportEvent（event_controller.go）
-    Svc->>Store: Record（event_service.go）
-    Store->>Store: needRollOver>20MB? rollOver 转储 zip<br/>（local_storage.go）
-    Store->>Sink: engine.Print(event.ToJSON()) 追加写 EventFile<br/>（local_storage.go；配置 common/conf/config.go）
-    Store-->>Ctrl: err?
-    Ctrl-->>Client: 200 DataResponse / 400 ClientFailed（event_controller.go）
+  participant C as 云浏览器客户端
+  participant F as 限流过滤器
+  participant EC as EventController
+  participant S as EventService
+  participant L as 本地事件文件
+  C->>F: POST .../sendClientEvent
+  F-->>C: 过载则 429 + Retry-After:3
+  F->>EC: 放行
+  EC->>EC: 解析JSON（校验恒通过）
+  EC->>S: ReportEvent(Client 类型事件)
+  S->>L: 追加写事件 JSON
+  L-->>S: 成功/失败
+  S-->>EC: 结果
+  EC-->>C: 成功 {code:200,data:true} / 失败 {code:-2}
 ```
 
-- 无外发：auditlog 仅作 WriterSink 写本地文件/stdout，无向事件服务转发的 HTTP 逻辑（src/common/event/local_storage.go）。
-- 同步逐条写入，无批量/异步队列/重试；Record 失败仅记日志并返回 err（src/common/event/local_storage.go）。
-- 仅清理异步：goroutine 每小时删过期转储 zip，rollOver 末尾同步再清一次（src/common/event/local_storage.go）。
+主链路二：上报应用使用时长事件
+
+```mermaid
+sequenceDiagram
+  participant C as 云浏览器客户端
+  participant F as 限流过滤器
+  participant EC as EventController
+  participant S as EventService
+  participant L as 本地事件文件
+  C->>F: POST .../sendAppUseTimesEvent
+  F->>EC: 放行
+  EC->>EC: 解析JSON（校验恒通过）
+  EC->>S: ReportEvent(AppUseTimes 类型事件)
+  S->>L: 追加写事件 JSON
+  S-->>EC: 结果
+  EC-->>C: 成功 {code:200,data:true} / 失败 {code:-2}
+```
+
+关键分支与异步环节（各一句，带证据文件）：
+
+- 请求体读取或 JSON 解析失败返回 HTTP 400、code=-2（src/controllers/controller.go、src/common/constants/retcode/retcode.go）
+- 两个请求结构 Validate 恒返回 nil，字段为空也照常受理落盘（src/models/req/event_request.go）
+- 事件写文件失败同样返回 code=-2 告知客户端（src/controllers/event_controller.go）
+- 事件文件路径未配置或创建失败时降级写到标准输出，不报错（src/common/event/local_storage.go）
+- 异步：存储创建时起一个每小时执行的协程清理过期转储文件（src/common/event/local_storage.go）
+- 事件路径无任何鉴权过滤器，拒绝码只有限流的 429；401 常量在仓内定义但无任何代码引用（src/controllers/filter.go、src/common/constants/retcode/retcode.go）
+- 明确不走：不落数据库、不发 HTTP/RPC 出向调用、不写审计日志通道（src/service/event_service.go、src/common/event/local_storage.go）
 
 ## 6. 框架引用
 
 | 基础框架 | 框架文档 | 本功能中的用途（引用文件） |
-| --- | --- | --- |
-| Beego Web | ../framework-usage/rpc-beego-web.md | 路由注册与 Controller 基座：EventController 内嵌 beego.Controller，经 beego.Router 双侧挂载（src/controllers/event_controller.go、src/routers/beego_router.go） |
-| auditlog 审计日志 | ../framework-usage/log-lager-auditlog-event.md | 事件落盘：auditlog.NewLoggerBase + NewWriterSink 将事件 JSON 追加写入 EventFile 或 stdout（src/common/event/local_storage.go） |
-| JSON 编解码 | ../framework-usage/codec-json-yaml.md | 请求体 JSON 反序列化与事件 ToJSON 序列化落盘（src/controllers/controller.go、src/models/events/base.go） |
-| goroutine 并发 | ../framework-usage/concurrency-goroutine.md | 后台 goroutine 每小时触发过期转储文件清理（src/common/event/local_storage.go） |
+|---|---|---|
+| Beego Web 路由/Controller | [rpc-beego-web.md](../framework-usage/rpc-beego-web.md) | 双监听路由注册与请求处理（src/routers/beego_router.go、src/controllers/event_controller.go、src/controllers/controller.go） |
+| 日志体系（auditlog 事件存储） | [log-lager-auditlog-event.md](../framework-usage/log-lager-auditlog-event.md) | 事件经 auditlog 引擎写入本地滚动文件（src/common/event/local_storage.go、src/service/event_service.go） |
+| 配置（flagutil） | [config-appconf-flagutil-configcenter.md](../framework-usage/config-appconf-flagutil-configcenter.md) | 事件文件路径取自 Logger.EventFile 配置（src/common/conf/config.go、src/service/event_service.go） |
+| 协程与单例 | [concurrency-goroutine.md](../framework-usage/concurrency-goroutine.md) | sync.Once 初始化存储工厂、每小时清理协程（src/service/event_service.go、src/common/event/local_storage.go） |
+| 定时调度 | [schedule-timer.md](../framework-usage/schedule-timer.md) | time.Tick 每小时例行清理转储文件（src/common/event/local_storage.go） |
+| JSON 编解码 | [codec-json-yaml.md](../framework-usage/codec-json-yaml.md) | 请求体解析与事件序列化落盘（src/controllers/controller.go、src/models/events/base.go） |
 
 ## 7. AI 编码指南
 
-- 新事件类型注册eventTypeMap并复用NewInfo（src/models/events/base.go）。
-- 新存储实现须同步改注册键与取用键（src/service/event_service.go）。
-- 请求Validate为空，校验在Service层补（src/models/req/event_request.go）。
-- Record/rollOver无锁，勿加并发状态（src/common/event/local_storage.go）。
+- 新增事件接口只在路由表加映射即双端生效（src/controllers/event_controller.go）
+- 新事件类型先加枚举与描述表再组装（src/models/events/base.go）
+- 事件写盘失败要对客户端返回 code=-2（src/controllers/event_controller.go）
+- 事件文件路径走 log.event 配置，空则降级 stdout（src/common/conf/config.go）
+- 勿给事件路径加鉴权过滤器，现状仅全局限流（src/controllers/filter.go）

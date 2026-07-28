@@ -1,137 +1,171 @@
 # 证书订阅
 
-> 功能域概述：通过 CSP CertSDK 订阅外部/服务端证书场景变更，SDK 回调驱动 muen 对外客户端重建与外部 HTTPS 服务证书加载/重启。
-> 接口数：1 个订阅入口（3 个证书场景）　核心模块：common/cert、common/https、stubs/CSPGSOMF/CertSDK
+> 功能域概述：订阅证书管理服务下发的证书更新事件，动态刷新对外 HTTPS 服务端证书与出访外部系统（沐恩）的客户端证书，保证 TLS 通信证书始终有效。
+> 接口数：3（消息订阅入口 3，无 HTTP 对外接口）　核心模块：common/cert, common/https, stubs/CSPGSOMF/CertSDK
 
 ## 1. 功能故事（多彩建模）
 
-实现逻辑速览：启动时向证书平台订阅三类证书。更新推送到达后落到指定目录并即时生效。服务端证书换新靠进程退码重启完成。
+实现逻辑速览（每句 ≤30 字）：
+
+启动时先退订旧订阅，再按三个身份订阅证书场景。
+外部证书更新到达后，整体重建出访客户端。
+服务端证书到齐后拉起端口，已在运行则重启进程换证。
 
 ```mermaid
 flowchart LR
-    classDef mi fill:#ffd1dc,stroke:#c2185b,color:#6d0f33
-    classDef role fill:#fff3b0,stroke:#b8860b,color:#5d4a00
-    classDef ppt fill:#c8e6c9,stroke:#388e3c,color:#1b5e20
-    classDef desc fill:#bbdefb,stroke:#1565c0,color:#0d47a1
+  classDef mi fill:#ffd1dc,stroke:#c2185b,color:#000
+  classDef role fill:#fff3b0,stroke:#f9a825,color:#000
+  classDef ppt fill:#c8e6c9,stroke:#2e7d32,color:#000
+  classDef desc fill:#bbdefb,stroke:#1565c0,color:#000
 
-    platform["证书管理平台（外部系统）"]:::role
-    gids["GIDS 本服务"]:::role
-    listener["HTTPS 监听"]:::role
+  Starter[进程启动]:::role
+  CertCenter[证书管理服务<br/>外部]:::role
+  E1[退订旧订阅再订阅三个场景]:::mi
+  E2[受理外部证书更新]:::mi
+  E3[受理服务端证书更新]:::mi
+  E4[证书齐备拉起或重启HTTPS服务]:::mi
+  Files[(证书文件 /opt/csp/gids/<br/>未下发→已落盘)]:::ppt
+  Client[(出访客户端<br/>旧证书→新证书)]:::ppt
+  TLS[(服务端TLS配置<br/>未就绪→已就绪)]:::ppt
+  R1[换包重启不退订会引发联动复位]:::desc
+  R2[证书未齐不启动端口]:::desc
+  R3[运行中收到更新以退出码3重启]:::desc
 
-    e1["事件1：启动时订阅三类证书<br/>触发者：GIDS 本服务｜输入：三类场景名单<br/>输出：订阅关系建立｜后继：事件2"]:::mi
-    e2["事件2：收到证书更新推送<br/>触发者：证书管理平台｜输入：变更的场景名<br/>输出：证书路径与私钥口令｜后继：事件3"]:::mi
-    e3["事件3：新证书落到指定目录并记录路径<br/>触发者：证书管理平台/GIDS 本服务｜输入：证书内容<br/>输出：三类证书文件｜后继：事件4 或 事件5"]:::mi
-    e4["事件4：重建对外访问客户端<br/>触发者：GIDS 本服务｜输入：外部证书路径<br/>输出：新 TLS 配置的客户端｜后继：对外请求继续"]:::mi
-    e5["事件5：触发退码重启完成证书刷新<br/>触发者：GIDS 本服务｜输入：服务端证书路径<br/>输出：HTTPS 监听换新证书｜后继：进程重启后回到事件1"]:::mi
-
-    certFiles["三类证书文件<br/>（外部设备证书 / 外部CA证书 / 服务端CA与设备证书）"]:::ppt
-    tlsCfg["TLS 配置"]:::ppt
-
-    r1["规则：证书统一落在<br/>/opt/csp/gids/ 下"]:::desc
-    r2["规则：服务端证书已在使用时再更新，<br/>进程以退码 3 退出靠平台重启"]:::desc
-    r3["规则：取证书失败只记日志、继续处理，<br/>可能带病前进"]:::desc
-
-    platform -.发起.-> e2
-    gids -.发起.-> e1
-    gids -.发起.-> e4
-    gids -.发起.-> e5
-    e1 ==> e2 ==> e3
-    e3 ==外部证书场景==> e4
-    e3 ==服务端证书场景==> e5
-    e3 -.产出.-> certFiles
-    e4 -.使用.-> tlsCfg
-    e5 -.刷新.-> listener
-    tlsCfg -.装备.-> listener
-    r1 -.约束.-> e3
-    r2 -.约束.-> e5
-    r3 -.约束.-> e2
+  Starter --> E1
+  CertCenter --> E2
+  CertCenter --> E3
+  E1 --> E2
+  E2 --> E3 --> E4
+  E1 -.读写.-> Files
+  E2 -.重建.-> Client
+  E4 -.装配.-> TLS
+  R1 -.约束.-> E1
+  R2 -.约束.-> E4
+  R3 -.约束.-> E4
 ```
+
+术语表：
 
 | 术语 | 人话解释 | 出处 |
 |---|---|---|
-| muen（gids-muen） | 本服务访问外部互联系统时用的设备证书订阅，更新后重建对外客户端 | src/common/cert/cert.go；src/common/https/client.go |
-| muenCa（gids-muenCa） | 校验外部系统身份用的外部 CA 根证书订阅，与 muen 共用同一处理逻辑 | src/common/cert/cert.go |
-| 订阅场景 | 向证书平台登记"我关心哪几类证书"的名字，平台变更时按名推送 | src/common/cert/cert.go；src/stubs/CSPGSOMF/CertSDK/api/base/base.go |
-| 退码重启 | 服务端证书换新不靠热加载，而是进程以退出码 3 自杀、靠平台拉起重载证书 | src/common/https/https_server.go |
-| 证书落盘根路径 | 所有订阅证书统一存放的目录 /opt/csp/gids/ | src/common/cert/cert.go |
-| 私钥口令 | 解开加密私钥文件所需的密码，随订阅回调取回、只存内存 | src/common/cert/cert.go；src/common/https/tls.go |
-| 换包重启残留清理 | 升级重启后先退订旧订阅再重新订阅，避免重复推送 | src/common/cert/cert.go |
-| 证书管理平台 | 推送证书变更的外部系统，其具体身份与推送协议代码中未体现（SDK 在本仓为 mock） | src/go.mod |
+| 沐恩（Muen） | 外部对接系统，出访它时使用订阅下发的"外部证书"建 HTTPS 客户端 | src/common/https/client.go |
+| 场景（Scene） | 证书管理服务按用途划分的证书类别，每类一个场景名 | src/common/cert/cert.go |
+| CA 证书 | 校验对方身份的根证书，SceneType=1 | src/common/cert/cert.go |
+| 设备证书 | 本进程自身的证书与私钥（含私钥口令），SceneType=2 | src/common/cert/cert.go |
+| SBG | 云浏览器业务域前缀，四个场景名均以 sbg_ 开头；业务含义代码中未体现 | src/common/cert/cert.go |
+| gids-muen / gids-muenCa / gids | 本进程向证书管理服务订阅时使用的三个应用身份，分别对应外部设备证书、外部 CA 证书、服务端证书 | src/common/cert/cert.go |
+| CertSDK（CSPGSOMF） | 证书管理服务的客户端 SDK；仓内 src/stubs 下为桩代码，所有方法返回空值，真实推送通道代码中未体现 | src/stubs/CSPGSOMF/CertSDK/api/certapi/certapi.go |
+| 退出码 3 | 运行中收到服务端证书更新后进程以此码退出，依赖外部守护拉起重装证书 | src/common/https/https_server.go |
 
 ## 2. 模块划分
 
 ```mermaid
 graph LR
-    main["main<br/>(src/main.go)"] --> cert["common/cert<br/>(src/common/cert/cert.go)"]
-    cert --> sdk["CertSDK stub<br/>(src/stubs/CSPGSOMF/CertSDK)"]
-    cert --> srv["HTTPS server<br/>(src/common/https/https_server.go)"]
-    cert --> cli["muen client<br/>(src/common/https/client.go)"]
-    srv --> tls["TLS 构建<br/>(src/common/https/tls.go)"]
-    cli --> tls
+  Main[src/main.go 启动接线] --> Cert[src/common/cert/cert.go 订阅编排]
+  Cert --> SDK[src/stubs/CSPGSOMF/CertSDK 证书SDK桩]
+  Cert --> HttpsSrv[src/common/https/https_server.go 服务端换证]
+  Cert --> HttpsCli[src/common/https/client.go 客户端换证]
+  HttpsSrv --> TLS[src/common/https/tls.go TLS配置装配]
+  HttpsCli --> TLS
 ```
 
 | 模块 | 承载功能（引用文件） |
 |---|---|
-| main | 启动编排：server.Run 后调 `InitCert` + `SubscribeCert(externalServer)`，失败 Fatal（src/main.go） |
-| common/cert | 场景注册、旧订阅清理、3 笔订阅与两类回调 handler（src/common/cert/cert.go） |
-| stubs/CSPGSOMF/CertSDK | `CSPExCertManager` 接口与 mock 实现；mock/真实 SDK 经 go.mod `replace CSPGSOMF => ./stubs/CSPGSOMF` 切换，生产替换指向真实 SDK，业务代码零改动（src/stubs/CSPGSOMF/CertSDK；src/go.mod） |
-| common/https server | 证书事件监听、首次启动/退码重启状态机（src/common/https/https_server.go） |
-| common/https client | muen 对外客户端按新证书整体重建（src/common/https/client.go） |
-| common/https tls | `CertInfo` 载体与 `tls.Config` 构建、私钥解密（src/common/https/tls.go） |
+| src/main.go | 启动外部 HTTPS 服务后调用 cert.InitCert 与 cert.SubscribeCert 完成接线，失败则进程退出（src/main.go） |
+| src/common/cert/cert.go | 初始化 SDK、定义四个证书场景、先退订旧订阅再按三个身份订阅、分发外部/服务端证书更新（src/common/cert/cert.go） |
+| src/stubs/CSPGSOMF/CertSDK | 证书 SDK 契约接口与桩实现：订阅/退订/取证书路径/取私钥口令，桩方法全部返回空值（src/stubs/CSPGSOMF/CertSDK/api/base/base.go、src/stubs/CSPGSOMF/CertSDK/api/certapi/certapi.go） |
+| src/common/https/https_server.go | 缓存服务端证书，证书齐备后装配 TLS 拉起端口；运行中收到更新以退出码 3 重启（src/common/https/https_server.go） |
+| src/common/https/client.go | 外部证书更新时整体重建出访沐恩的 HTTPS 客户端（src/common/https/client.go） |
+| src/common/https/tls.go | 读证书文件、解密私钥、装配服务端/客户端 TLS 配置（src/common/https/tls.go） |
 
 ## 3. 接口清单
 
-| 订阅场景 | 类型/入口 | 回调入参结构 | 产出 | 状态 |
+本功能为消息/事件订阅类入口，无 HTTP 对外接口：
+
+| 接口 | 路径/入口（含注册处） | 请求结构 | 响应结构 | 状态 |
 |---|---|---|---|---|
-| "gids-muen"（`sbg_external_device_certificate` 外部设备证书） | 消息订阅 / `SubscribeExCert`（src/common/cert/cert.go） | `[]*base.CspExCertInfo, int` → `exCertInfoHandler`（src/common/cert/cert.go） | 重建 muen client（src/common/https/client.go） | 在用 |
-| "gids-muenCa"（`sbg_external_ca_certificate` 外部CA证书） | 消息订阅 / `SubscribeExCert`（src/common/cert/cert.go） | 同上，共用 handler（src/common/cert/cert.go） | 同上（写入包级 `newCertInfo`） | 在用 |
-| "gids"（`sbg_server_ca_certificate` + `sbg_server_device_certificate` 服务端CA/设备证书） | 消息订阅 / `SubscribeExCert`（src/common/cert/cert.go） | 同上 → `serverCertInfoHandler`（src/common/cert/cert.go） | `server.UpdateCert` 热更新/重启（src/common/https/https_server.go） | 在用 |
+| 订阅外部设备证书 | 订阅入口 cert.SubscribeCert（src/common/cert/cert.go）；身份 gids-muen，场景 sbg_external_device_certificate；启动接线 src/main.go | 回调入参 []*CspExCertInfo + notifyType（src/stubs/CSPGSOMF/CertSDK/api/base/base.go） | 回调返回 error；证书落盘路径 /opt/csp/gids/，无同步响应 | 在用 |
+| 订阅外部 CA 证书 | 订阅入口 cert.SubscribeCert（src/common/cert/cert.go）；身份 gids-muenCa，场景 sbg_external_ca_certificate；启动接线 src/main.go | 回调入参 []*CspExCertInfo + notifyType（src/stubs/CSPGSOMF/CertSDK/api/base/base.go） | 回调返回 error；证书落盘路径 /opt/csp/gids/，无同步响应 | 在用 |
+| 订阅服务端证书 | 订阅入口 cert.SubscribeCert（src/common/cert/cert.go）；身份 gids，场景 sbg_server_ca_certificate + sbg_server_device_certificate；启动接线 src/main.go | 回调入参 []*CspExCertInfo + notifyType（src/stubs/CSPGSOMF/CertSDK/api/base/base.go） | 回调返回 error；证书落盘路径 /opt/csp/gids/，无同步响应 | 在用 |
 
 ## 4. 关键数据结构
 
 | 结构 | 定义位置 | 关键字段（含义+约束） |
 |---|---|---|
-| CspExSceneInfo | src/stubs/CSPGSOMF/CertSDK/api/base/base.go | `SceneName` 场景唯一名（handler 分支键）；`SceneType` 1=CA、2=设备证书（src/common/cert/cert.go）；`Feature` 固定 0 |
-| CspExCertInfo | src/stubs/CSPGSOMF/CertSDK/api/base/base.go | 仅 `SceneName`，须再调 `GetExCertPathInfo` 反查路径（src/common/cert/cert.go） |
-| CspExCertPathInfo | src/stubs/CSPGSOMF/CertSDK/api/base/base.go | `ExCaFilePath` CA 路径；`ExDeviceFilePath` 设备证书路径；`ExPrivateKeyFilePath` 私钥路径 |
-| CertInfo | src/common/https/tls.go | `KeyFile`/`CertFile`/`CaFile` 路径；`KeyPwd` 私钥口令 []byte（来自 `GetExCertPrivateKeyPwd`，src/common/cert/cert.go）；server/client 共用 |
-| BeegoHttpsServer | src/common/https/https_server.go | `restartChan chan CertInfo`（缓冲 1）；`isServerReady` 区分首启与重启 |
+| CspExSceneInfo | src/stubs/CSPGSOMF/CertSDK/api/base/base.go | SceneName（场景唯一标识，订阅与回调按它分发）；SceneType（1=CA 证书，2=设备证书）；SceneDescCN/EN（中英文描述，仅声明用） |
+| CspExCertInfo | src/stubs/CSPGSOMF/CertSDK/api/base/base.go | SceneName（本次更新涉及的场景名，回调内 switch 分发的唯一依据） |
+| CspExCertPathInfo | src/stubs/CSPGSOMF/CertSDK/api/base/base.go | ExCaFilePath（CA 证书落盘路径）；ExDeviceFilePath（设备证书路径）；ExPrivateKeyFilePath（私钥路径） |
+| CertInfo | src/common/https/tls.go | CertFile/KeyFile/CaFile（证书、私钥、CA 文件路径）；KeyPwd（私钥口令，非空时先解密私钥） |
+| CSPExCertManager | src/stubs/CSPGSOMF/CertSDK/api/base/base.go | 接口：SubscribeExCert/UnsubscribeExCert/GetExCertPathInfo/GetExCertPrivateKeyPwd；仓内实现为返回空值的桩 |
 
 ## 5. 调用关系
 
+链路一：外部证书更新（出访客户端换证）：
+
 ```mermaid
 sequenceDiagram
-    participant M as main (src/main.go)
-    participant C as common/cert (src/common/cert/cert.go)
-    participant S as CertSDK (src/stubs/CSPGSOMF/CertSDK)
-    participant H as HTTPS server (src/common/https/https_server.go)
-    participant K as muen client (src/common/https/client.go)
-    M->>C: InitCert + SubscribeCert
-    C->>S: SubscribeExCert x3
-    S-->>C: 回调 exCertInfoHandler / serverCertInfoHandler
-    C->>C: GetExCertPathInfo + 私钥口令
-    alt muen 场景
-        C->>K: MuenCertUpdate 重建 client
-    else gids 场景
-        C->>H: UpdateCert → restartChan
-        H->>H: 首启 go server.Run / 已启 os.Exit(3)
-    end
+  participant CC as 证书管理服务
+  participant SDK as CertSDK(桩)
+  participant H as exCertInfoHandler
+  participant Cli as Muen客户端
+  CC->>SDK: 推送证书更新(场景名列表)
+  SDK->>H: 回调(certInfo, notifyType)
+  loop 每个更新场景
+    H->>SDK: 取证书落盘路径与私钥口令
+    SDK-->>H: 路径/口令(桩返回空值)
+  end
+  H->>Cli: MuenCertUpdate 整体重建客户端
+  Note over Cli: 新证书TLS配置即时生效
 ```
 
-- 三订阅落盘路径均为 `/opt/csp/gids/`，订阅前反向 `UnsubscribeExCert` 清理换包残留（src/common/cert/cert.go）。
-- server 侧"热更新"实为退码重启：证书齐且已运行则 `os.Exit(restartExitCode=3)`（src/common/https/https_server.go）。
-- 初始加载无本地证书：muen client 空证书初始化（src/common/https/client.go）、HTTPS 端口待首次回调才监听（src/common/https/https_server.go）。
+链路二：服务端证书更新（对外端口换证）：
+
+```mermaid
+sequenceDiagram
+  participant CC as 证书管理服务
+  participant SDK as CertSDK(桩)
+  participant H as serverCertInfoHandler
+  participant Srv as BeegoHttpsServer
+  participant Mon as 证书监听协程
+  CC->>SDK: 推送证书更新(场景名列表)
+  SDK->>H: 回调(certInfo, notifyType)
+  loop 每个更新场景
+    H->>SDK: 取证书落盘路径与私钥口令
+    SDK-->>H: 路径/口令(桩返回空值)
+  end
+  H->>Srv: UpdateCert 投递到证书通道
+  Srv->>Mon: 通道唤醒监听协程
+  alt 证书未齐(CA或私钥缺)
+    Mon->>Mon: 跳过本次事件继续等待
+  else 证书齐备且服务未启动
+    Mon->>Srv: 装配TLS配置并拉起HTTPS端口
+  else 证书齐备且服务已运行
+    Mon->>Srv: 以退出码3退出进程重启换证
+  end
+```
+
+关键分支与异步环节（各一句，带证据文件）：
+
+- 订阅前先对三个身份退订旧订阅，防换包重启时客户端更新引发服务端联动复位（src/common/cert/cert.go）
+- 取路径/口令失败只记日志不中断，未知场景名只记日志忽略（src/common/cert/cert.go）
+- 证书更新经通道异步交给监听协程处理，回调本身不阻塞（src/common/https/https_server.go）
+- 服务端证书更新不热替换，运行中一律退出码 3 重启进程（src/common/https/https_server.go）
+- 外部证书采用整体重建客户端生效，不做连接级复用（src/common/https/client.go）
+- CertSDK 为桩实现，真实推送触发条件与重试机制代码中未体现（src/stubs/CSPGSOMF/CertSDK/api/certapi/certapi.go）
 
 ## 6. 框架引用
 
 | 基础框架 | 框架文档 | 本功能中的用途（引用文件） |
 |---|---|---|
-| Beego v2（web/server） | ../framework-usage/rpc-beego-web.md | 构建外部 HTTPS 服务、挂载 TLS 配置、证书齐后启动/退码重启（src/common/https/https_server.go） |
-| go-chassis lager | ../framework-usage/log-lager-auditlog-event.md | 订阅注册、回调处理、重启决策全程经 common/logger（包装 lager）记日志（src/common/logger/logger.go；src/common/cert/cert.go；src/common/https/https_server.go） |
+| Beego Web（HttpServer 封装） | [rpc-beego-web.md](../framework-usage/rpc-beego-web.md) | 对外 HTTPS 服务端承载与证书齐备后的端口拉起（src/common/https/https_server.go、src/main.go） |
+| lager 日志 | [log-lager-auditlog-event.md](../framework-usage/log-lager-auditlog-event.md) | 订阅、回调、换证全过程运行日志与失败告警（src/common/cert/cert.go、src/common/https/https_server.go） |
+| goroutine 与 channel 并发 | [concurrency-goroutine.md](../framework-usage/concurrency-goroutine.md) | 证书监听协程与证书通道异步换证（src/common/https/https_server.go） |
+| HTTP Client 构建 | [rpc-http-client-builder.md](../framework-usage/rpc-http-client-builder.md) | 外部证书更新时重建出访沐恩的 HTTPS 客户端（src/common/https/client.go） |
 
 ## 7. AI 编码指南
 
-- 新场景须同步改构造、分支、清理三处（src/common/cert/cert.go）
-- 证书更新仅走UpdateCert→restartChan（src/common/https/https_server.go）
-- 回调禁重IO，monitorCertificate串行消费（src/common/https/https_server.go）
-- 本地测试直接注入 CertInfo，勿等回调（src/stubs/CSPGSOMF/CertSDK/api/certapi/certapi.go；src/go.mod）
+- 新增证书场景须同步加入退订清单防联动复位（src/common/cert/cert.go）
+- 订阅任一步失败进程直接 Fatal，勿吞错（src/common/cert/cert.go、src/main.go）
+- 服务端换证靠退出码3重启，勿改热替换（src/common/https/https_server.go）
+- 外部证书整体重建客户端，勿做增量改配置（src/common/https/client.go）
+- CertSDK 是桩代码，真机行为以真实 SDK 为准（src/stubs/CSPGSOMF/CertSDK/api/certapi/certapi.go）

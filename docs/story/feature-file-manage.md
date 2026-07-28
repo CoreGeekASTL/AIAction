@@ -1,181 +1,174 @@
 # 文件管理
 
-> 功能域概述：提供文件上传、下载、存在性查询与删除能力；实际存储为关系数据库 `t_file`（bytea 整存整取），minio 封装存在但未被使用。
-> 接口数：8（外部 2 / 内部 6，其中 2 条内部路由与外部同路径重复注册）　核心模块：controllers（ExFileController/FileController）、service（FileServiceImpl）、dao（FileDao + BaseDao）
+> 功能域概述：提供文件的上传、下载、删除与存在性判断，文件内容以字节形式整体落入数据库表。
+> 接口数：8（外部 2 / 内部 6）　核心模块：controllers, service, dao, models/db
 
 ## 1. 功能故事（多彩建模）
 
-实现逻辑速览：文件整段读入内存后写入数据库表。同桶同名再传即覆盖旧内容。下载时整段取出、以附件返回。
+实现逻辑速览（1~3 句，每句 ≤30 字，业务语言，禁文件名/函数名/行号）：
+
+收到文件请求后先清洗文件名，防路径穿越。
+上传按桶名加文件名落库，同名则覆盖内容。
+下载删除判存均按桶名加文件名查库。
 
 ```mermaid
 flowchart LR
-    classDef mi fill:#ffd1dc,stroke:#c2185b,color:#000
-    classDef role fill:#fff3b0,stroke:#f9a825,color:#000
-    classDef ppt fill:#c8e6c9,stroke:#2e7d32,color:#000
-    classDef desc fill:#bbdefb,stroke:#1565c0,color:#000
+  classDef mi fill:#ffd1dc,stroke:#c2185b,color:#000
+  classDef role fill:#fff3b0,stroke:#f9a825,color:#000
+  classDef ppt fill:#c8e6c9,stroke:#2e7d32,color:#000
+  classDef desc fill:#bbdefb,stroke:#1565c0,color:#000
 
-    R1["调用方（外部）<br/>经公网 HTTPS 入口<br/>具体是谁：代码中未体现"]:::role
-    R2["调用方（内部）<br/>经本机 9090 内网入口"]:::role
-    R3["GIDS 本服务"]:::role
+  CallerOut[调用方 外部监听]:::role
+  CallerIn[调用方 内部监听]:::role
+  E1[受理文件请求]:::mi
+  E2[清洗并校验文件名]:::mi
+  E3[按桶加名读写文件记录]:::mi
+  E4[返回路径或文件内容]:::mi
+  Data[(文件记录<br/>状态 无→有 / 旧内容→新内容)]:::ppt
+  R1[文件名禁含路径分隔符]:::desc
+  R2[同名上传覆盖而非新增]:::desc
 
-    E1["事件：上传文件<br/>触发者：外部/内部调用方<br/>输入：文件名 + 文件字节（或表单文件）<br/>输出：访问路径 /桶名/文件名<br/>后继：入库存储"]:::mi
-    E2["事件：入库存储<br/>触发者：上传事件<br/>输入：文件名 + 字节内容<br/>输出：一条已存储的文件记录<br/>后继：可被下载/查询/删除"]:::mi
-    E3["事件：下载文件<br/>触发者：外部/内部调用方<br/>输入：文件名（+桶名）<br/>输出：文件字节流（附件形式）<br/>后继：无"]:::mi
-    E4["事件：查询文件是否存在<br/>触发者：内部调用方<br/>输入：桶名 + 文件名<br/>输出：存在回 200，不存在回 404<br/>后继：无"]:::mi
-    E5["事件：删除文件<br/>触发者：内部调用方<br/>输入：桶名 + 文件名<br/>输出：成功回执<br/>后继：记录消失"]:::mi
-
-    P0["文件记录（尚无）"]:::ppt
-    P1["文件记录·已存储<br/>存于数据库表 t_file"]:::ppt
-    P2["文件记录·已删除"]:::ppt
-
-    D1["规则：按 桶名+文件名 唯一定位；<br/>同名重复上传直接覆盖旧内容"]:::desc
-    D2["规则：内容整段读入内存再处理，<br/>无分片；大文件会占内存"]:::desc
-    D3["规则：文件名禁止带路径分隔符，<br/>防目录穿越"]:::desc
-    D4["规则：存到哪套库随环境开关切换<br/>（正式库 / 本地模式内嵌库）"]:::desc
-
-    R1 --> E1
-    R2 --> E1
-    R3 -.承载处理.-> E1
-    E1 --> E2
-    P0 --> E2 --> P1
-    R1 --> E3
-    R2 --> E3
-    P1 --> E3
-    R2 --> E4
-    P1 --> E4
-    R2 --> E5
-    P1 --> E5 --> P2
-    D1 -.约束.-> P1
-    D2 -.约束.-> P1
-    D3 -.约束.-> P1
-    D4 -.约束.-> P1
+  CallerOut --> E1
+  CallerIn --> E1
+  E1 --> E2 --> E3 --> E4
+  E3 -.读写.-> Data
+  R1 -.约束.-> E2
+  R2 -.约束.-> E3
 ```
 
-### 术语表
+术语表：
 
 | 术语 | 人话解释 | 出处 |
-| --- | --- | --- |
-| bucket（桶） | 文件的逻辑分组名，本域上传时写死为 `upload-bucket`，并非真正的对象存储桶 | src/common/constants/base.go；src/controllers/file_controller.go |
-| t_file | 存文件的数据库表，一行 = 一个文件（元信息 + 全部字节内容） | src/models/db/file.go |
-| bytea 整存 | 文件内容作为一个二进制大字段整体存进数据库行，读写都整段进行，不支持分片 | src/models/db/file.go；src/service/file_service.go |
-| OSS | 日志报错文案里的叫法，容易误导；文件实际并未走对象存储，minio 封装全仓无人调用 | src/service/file_service.go；src/common/storage/oss/minio.go |
-| LOCAL_MODE | 环境开关：置 true 时数据库换成本机内嵌 SQLite，文件随之落到本地库，代码路径不变 | src/dao/db_init.go |
-| cleanFileName | 文件名清洗：去掉路径跳转并拒绝含 `/`、`\` 的名字，防目录穿越 | src/service/file_service.go |
-| multipart 表单上传 | 内部上传接口的另一种收文件方式：从表单字段 `file` 取文件 | src/controllers/file_controller.go |
-| 外部/内部双入口 | 同一套上传下载逻辑注册了两遍：公网 HTTPS 一份、本机 9090 内网一份，代码重复 | src/controllers/exfile_controller.go；src/controllers/file_controller.go |
+|---|---|---|
+| 桶（bucket） | 文件的逻辑分组名，类似目录命名空间 | src/common/constants/base.go |
+| upload-bucket | /app-api 系列接口固定使用的桶名常量 | src/common/constants/base.go |
+| t_file | 存文件内容的数据库表，内容以字节数组入库 | src/models/db/file.go |
+| OSS | 日志报错文案里的对象存储称呼，实际并未接对象存储 | src/service/file_service.go |
+| MinIO | 仓内封装的对象存储组件，当前无任何调用方 | src/common/storage/oss/minio.go |
+| 路径穿越 | 文件名带目录分隔符越权读写他处文件的攻击手法 | src/service/file_service.go |
+| 外部监听 | 对外 HTTPS 服务，仅暴露上传下载两个接口 | src/routers/beego_router.go |
+| 内部监听 | 对内 HTTP 服务，另暴露 RESTful 增删查接口 | src/routers/beego_router.go |
 
 ## 2. 模块划分
 
 ```mermaid
 graph LR
-    subgraph 入口层
-        EFC[ExFileController<br/>exfile_controller.go]
-        FC[FileController<br/>file_controller.go]
-    end
-    subgraph 业务层
-        FS[FileService / FileServiceImpl<br/>file_service.go]
-    end
-    subgraph 数据层
-        FDAO[FileDao<br/>dao/file.go]
-        BDAO[BaseDao<br/>dao/base_dao.go]
-        M[db.File<br/>models/db/file.go]
-        DB[(GaussDB / LOCAL_MODE 下 SQLite<br/>dao/db_init.go)]
-    end
-    OSS[oss.Client / ossClient<br/>common/storage/oss/minio.go<br/>无调用方]
-    EFC --> FS
-    FC --> FS
-    FS --> FDAO --> BDAO --> M --> DB
+  Client[客户端] --> Router[routers/beego_router.go]
+  Router --> ExCtrl[controllers/exfile_controller.go 外部]
+  Router --> InCtrl[controllers/file_controller.go 内部]
+  ExCtrl --> Svc[service/file_service.go]
+  InCtrl --> Svc
+  Svc --> Dao[dao/file.go]
+  Dao --> BaseDao[dao/base_dao.go]
+  BaseDao --> DB[(t_file 表<br/>models/db/file.go)]
+  Oss[common/storage/oss/minio.go 无调用方] -.未被引用.- Svc
 ```
 
-| 模块 | 承载功能（文件） |
-| --- | --- |
-| ExFileController | 外部 HTTPS 上传/下载入口与路由注册（src/controllers/exfile_controller.go） |
-| FileController | 内部 127.0.0.1:9090 入口，同路径 2 接口 + bucket 维度 4 接口（src/controllers/file_controller.go） |
-| FileServiceImpl | 文件名清洗防路径遍历 cleanFileName、先查后写 insertOrUpdate、上传/下载/删除/存在性四大业务方法（src/service/file_service.go） |
-| FileDao / BaseDao | 实体绑定 NewFileDao、Exist 原生 SQL 计数、通用 ORM 增删改查（src/dao/file.go、src/dao/base_dao.go） |
-| models/db.File | `t_file` 表结构与 ByteArrayField 自定义字段类型（src/models/db/file.go） |
-| common/storage/oss | minio Client 接口与 ossClient 实现，全仓无 import、未被文件域调用（src/common/storage/oss/minio.go） |
+| 模块 | 承载功能（引用文件） |
+|---|---|
+| controllers/exfile_controller.go | 外部监听入口：上传（query 传名+裸 body）、下载（src/controllers/exfile_controller.go） |
+| controllers/file_controller.go | 内部监听入口：/app-api 上传下载 + /file/v1 RESTful 上传/下载/判存/删除（src/controllers/file_controller.go） |
+| controllers/controller.go | BaseController 约定：取参、裸 body 读取、统一 JSON/错误响应（src/controllers/controller.go） |
+| controllers/filter.go | 全局限流过滤器，过载返回 429（src/controllers/filter.go） |
+| service/file_service.go | 文件名清洗防穿越、上传同名覆盖、下载删除判存编排（src/service/file_service.go） |
+| dao/file.go + dao/base_dao.go | t_file 表增删改查与原生 SQL 计数（src/dao/file.go、src/dao/base_dao.go） |
+| models/db/file.go | t_file 表结构与字节数组字段类型（src/models/db/file.go） |
 
 ## 3. 接口清单
 
 | 接口 | 路径/入口（含注册处） | 请求结构 | 响应结构 | 状态 |
-| --- | --- | --- | --- | --- |
-| 上传文件（外部） | POST /app-api/control/file/upload；注册 src/routers/beego_router.go；入口 src/controllers/exfile_controller.go | query `fileName` + body 原始字节 | DataResponse{Code:200, Data:"/{bucket}/{name}"}（响应结构 src/models/resp/response_entity.go） | 在用 |
-| 下载文件（外部） | GET /app-api/control/file/download/:fileName；注册 src/routers/beego_router.go；入口 src/controllers/exfile_controller.go | path `:fileName` | 二进制流，头 Content-Disposition: attachment + application/octet-stream；失败 BaseResponse | 在用 |
-| 上传文件（内部，同路径） | POST /app-api/control/file/upload；注册 src/routers/beego_router.go；入口 src/controllers/file_controller.go | query `fileName` + body 原始字节 | 同外部 DataResponse | 在用（与外部重复实现） |
-| 下载文件（内部，同路径） | GET /app-api/control/file/download/:fileName；注册 src/routers/beego_router.go；入口 src/controllers/file_controller.go | path `:fileName` | 同外部二进制流 | 在用（与外部重复实现） |
-| 按 bucket 上传 | POST /file/v1/:bucketName/:name；注册 src/routers/beego_router.go；入口 src/controllers/file_controller.go | path bucket/name 固定为 upload-bucket + multipart 表单字段 `file` | DataResponse{Code:200, Data:"/{bucket}/{name}"} | 在用（内部） |
-| 按 bucket 下载 | GET /file/v1/:bucket/:name；注册 src/routers/beego_router.go；入口 src/controllers/file_controller.go | path bucket/name | 二进制流 + attachment 头 | 在用（内部） |
-| 存在性查询 | GET /file/v1/:bucket/:name/exist；注册 src/routers/beego_router.go；入口 src/controllers/file_controller.go | path bucket/name | 存在 200 空 body，否则 404（BaseController.NotFound，src/controllers/controller.go） | 在用（内部） |
-| 删除文件 | DELETE /file/v1/:bucketName/:fileName；注册 src/routers/beego_router.go；入口 src/controllers/file_controller.go | path bucket/fileName | DataResponse{Code:200} | 在用（内部） |
+|---|---|---|---|---|
+| HandleUpload（外部） | POST /app-api/control/file/upload；入口 src/controllers/exfile_controller.go；注册 src/routers/beego_router.go | query：fileName 必填；body：文件原始字节流，无大小校验 | DataResponse（src/models/resp/response_entity.go）：{code, msg, data=存储路径}；失败 code=-1/-2 | 在用 |
+| HandleDownload（外部） | GET /app-api/control/file/download/:fileName；入口 src/controllers/exfile_controller.go；注册 src/routers/beego_router.go | path：fileName | 文件字节流，头 Content-Disposition/Content-Type=application/octet-stream；失败 JSON {code, msg} | 在用 |
+| HandleUpload（内部） | POST /app-api/control/file/upload；入口 src/controllers/file_controller.go；注册 src/routers/beego_router.go | query：fileName 必填；body：文件原始字节流 | DataResponse：{code, msg, data=存储路径} | 在用 |
+| HandleDownload（内部） | GET /app-api/control/file/download/:fileName；入口 src/controllers/file_controller.go；注册 src/routers/beego_router.go | path：fileName | 文件字节流 + 下载响应头 | 在用 |
+| Upload（RESTful） | POST /file/v1/:bucketName/:name；入口 src/controllers/file_controller.go；注册 src/routers/beego_router.go | multipart 表单字段 file；path：bucketName、name | 200 JSON 字符串：存储路径 "/桶/名"；失败 500 {code, msg} | 在用 |
+| Download（RESTful） | GET /file/v1/:bucket/:name；入口 src/controllers/file_controller.go；注册 src/routers/beego_router.go | path：bucket、name | 文件字节流 + 下载响应头 | 在用 |
+| Exist | GET /file/v1/:bucket/:name/exist；入口 src/controllers/file_controller.go；注册 src/routers/beego_router.go | path：bucket、name | 存在：200 BaseResponse {code:200, msg}；不存在：404 空体 | 在用 |
+| HandleDelete | DELETE /file/v1/:bucketName/:fileName；入口 src/controllers/file_controller.go；注册 src/routers/beego_router.go | path：bucketName、fileName | BaseResponse {code:200, msg:"success"}；失败 500 | 在用 |
+
+出向调用：无（本功能不调用任何下游服务，数据落本机所连数据库）。
 
 ## 4. 关键数据结构
 
 | 结构 | 定义位置 | 关键字段（含义+约束） |
-| --- | --- | --- |
-| db.File | src/models/db/file.go | ID 自增主键；Bucket 桶名（上传固定 `upload-bucket`，src/common/constants/base.go）；Name 文件名（经 cleanFileName 清洗，禁含 `/`、`\`，src/service/file_service.go）；Content 文件字节 bytea；Size 字节数；CreatedAt 字符串时间 |
-| db.ByteArrayField | src/models/db/file.go | []byte 自定义 ORM 字段：SetRaw 支持 []byte/string，FieldType 报 TypeTextField |
-| resp.BaseResponse | src/models/resp/base.go | Code：200 成功 / -1 内部错 / -2 参数错（src/common/constants/retcode/retcode.go） |
-| resp.DataResponse | src/models/resp/response_entity.go | Data：上传成功返回 `/{bucket}/{name}`（src/service/file_service.go） |
-| oss.PutObject / GetObjectOptions | src/common/storage/oss/minio.go | BucketName、FileName、File io.Reader、Size（当前未被文件域调用） |
-
-说明：文件域无 req 请求结构体，入参全部来自 query/path 参数或原始 body/multipart 表单。
+|---|---|---|
+| File（t_file 表） | src/models/db/file.go | ID（自增主键）；Bucket（桶名，与 Name 联合定位）；Name（文件名，入库前清洗，禁含 / 与 \）；Content（文件字节，bytea 类型）；Size（字节数）；CreatedAt（字符串时间，仅首次插入时写入） |
+| BaseResponse | src/models/resp/base.go | Code（200 成功 / -1 内部失败 / -2 客户端失败，见 src/common/constants/retcode/retcode.go）；Message（json msg） |
+| DataResponse | src/models/resp/response_entity.go | 内嵌 BaseResponse；Data（上传成功时存放 "/桶/名" 路径字符串） |
 
 ## 5. 调用关系
 
+主链路一：/app-api 上传与下载（外部、内部监听同逻辑）：
+
 ```mermaid
 sequenceDiagram
-    participant C as 客户端
-    participant E as ExFileController<br/>(外部 HTTPS)
-    participant F as FileController<br/>(内部 9090)
-    participant S as FileServiceImpl
-    participant D as FileDao/BaseDao
-    participant DB as t_file<br/>(GaussDB / LOCAL_MODE→SQLite)
-
-    Note over C,DB: 上传
-    C->>E: POST /app-api/control/file/upload?fileName= (body 原始字节)
-    C->>F: POST /file/v1/:bucketName/:name (multipart 字段 file)
-    E->>E: io.ReadAll 全量读内存 (exfile_controller.go)
-    F->>F: GetFile("file") + io.ReadAll (file_controller.go)
-    E->>S: UploadFile(UploadBucket, name, content)
-    F->>S: UploadFile(...)
-    S->>S: cleanFileName 防路径遍历 (file_service.go)
-    S->>S: insertOrUpdate 先 Get 后 Insert/Update
-    S->>D: Get/Insert/Update (base_dao.go)
-    D->>DB: 落 t_file（LOCAL_MODE 走 SQLite，db_init.go）
-    S-->>E: DataResponse{200, "/bucket/name"}
-    Note over C,DB: 下载
-    C->>E: GET /app-api/control/file/download/:fileName
-    C->>F: GET /file/v1/:bucket/:name
-    E->>S: DownloadFile(UploadBucket, name)
-    F->>S: DownloadFile(...)
-    S->>S: cleanFileName (file_service.go)
-    S->>D: Get 按 Bucket+Name 整行读出
-    D->>DB: SELECT t_file
-    S-->>E: file.Content 整段字节
-    E-->>C: attachment + octet-stream 一次性 Write
+  participant C as 客户端
+  participant F as 限流过滤器
+  participant CC as Ex/FileController
+  participant S as FileService
+  participant D as FileDao
+  participant DB as t_file 表
+  C->>F: POST /app-api/control/file/upload?fileName=x
+  F-->>C: 过载时 429 直接拒绝
+  F->>CC: 放行
+  CC->>CC: 读取裸 body 全部字节
+  CC->>S: UploadFile(upload-bucket, 名, 内容)
+  S->>S: 清洗文件名，含分隔符则报错
+  S->>D: 按桶+名查记录
+  D->>DB: select
+  alt 记录不存在
+    S->>D: 插入新记录（写创建时间）
+  else 记录已存在
+    S->>D: 覆盖更新内容与大小
+  end
+  D->>DB: insert / update
+  S-->>CC: "/桶/名" 路径
+  CC-->>C: {code:200, data:路径}
 ```
 
-关键分支：
+主链路二：/file/v1 RESTful 上传/下载/判存/删除（仅内部监听）：
 
-- 全程同步、无队列/异步；唯一环境分支为 `LOCAL_MODE=true` 时改用嵌入式 SQLite（src/dao/db_init.go）。
-- Exist 走唯一原生 SQL count（src/dao/file.go），存在返 200 空、否则 404（src/controllers/file_controller.go）。
-- multipart 上传 `header == nil` 分支直接返 500（src/controllers/file_controller.go）；删除按 Bucket+Name 删行（src/service/file_service.go）。
-- FileService 仅唯一实现 FileServiceImpl、由 NewFileService 直接构造，无多实现选择机制（src/service/file_service.go）；oss.Client 为包级单例 Init/Instance，但全仓无调用方，不存在「本地 vs minio」后端选择逻辑（src/common/storage/oss/minio.go）。
+```mermaid
+sequenceDiagram
+  participant C as 内部调用方
+  participant CC as FileController
+  participant S as FileService
+  participant D as FileDao
+  participant DB as t_file 表
+  C->>CC: POST /file/v1/:bucket/:name（multipart 字段 file）
+  CC->>CC: 取表单文件并读全部字节
+  CC->>S: UploadFile(桶, 名, 内容)
+  S->>D: 查记录后插入或覆盖
+  D->>DB: insert / update
+  S-->>CC: 存储路径
+  CC-->>C: 200 JSON 路径
+  Note over C,DB: 下载/判存/删除同构：按桶+名查库<br/>判存走 count 计数，删除按桶+名删行
+```
+
+关键分支与异步环节（各一句，带证据文件）：
+
+- 文件名清洗失败（空名或含 / \）直接报错，不触库（src/service/file_service.go）
+- 同名上传覆盖更新内容与大小，不新增行，创建时间保留旧值（src/service/file_service.go）
+- /app-api 上传读裸 body，RESTful 上传读 multipart 表单，两条读取方式不同（src/controllers/file_controller.go）
+- 上传全程将文件读入内存，无大小上限校验（src/controllers/exfile_controller.go）
+- 内部 RESTful 下载的 Content-Length 头按字符转换写入，值为异常字符（src/controllers/file_controller.go）
+- 判存不存在返回 404 空体而非 JSON 错误体（src/controllers/controller.go）
+- 全链路同步执行，无异步与缓存环节（src/service/file_service.go）
+- 明确不走：MinIO 对象存储封装注册后无任何调用方，文件实际落数据库（src/common/storage/oss/minio.go）
 
 ## 6. 框架引用
 
 | 基础框架 | 框架文档 | 本功能中的用途（引用文件） |
-| --- | --- | --- |
-| Beego Web（路由/Controller） | ../framework-usage/rpc-beego-web.md | 注册外部/内部两套 HTTP 监听路由，承载上传、下载、存在性查询、删除共 8 个接口入口（src/routers/beego_router.go、src/controllers/exfile_controller.go、src/controllers/file_controller.go） |
-| Beego ORM | ../framework-usage/storage-beego-orm.md | 文件记录以 ORM 模型落 `t_file` 表，提供增删改查与存在性计数（src/models/db/file.go、src/dao/base_dao.go、src/dao/file.go、src/dao/db_init.go） |
-| lager 业务日志 | ../framework-usage/log-lager-auditlog-event.md | 上传/下载/删除失败的错误日志与文件信息日志输出（src/service/file_service.go、src/dao/base_dao.go、src/common/logger/logger.go） |
-| Beego AppConfig 配置读取 | ../framework-usage/config-appconf-flagutil-configcenter.md | 文件落库所用 GaussDB 连接参数（库名/账号/端口/密码）从应用配置读取（src/dao/db_init.go） |
+|---|---|---|
+| Beego Web 路由/Controller | [rpc-beego-web.md](../framework-usage/rpc-beego-web.md) | 双监听路由注册与请求处理（src/routers/beego_router.go、src/controllers/file_controller.go、src/controllers/exfile_controller.go） |
+| Beego ORM | [storage-beego-orm.md](../framework-usage/storage-beego-orm.md) | t_file 表模型注册与增删改查（src/models/db/file.go、src/dao/base_dao.go、src/dao/file.go） |
+| lager 日志/审计 | [log-lager-auditlog-event.md](../framework-usage/log-lager-auditlog-event.md) | 各环节错误与信息日志（src/service/file_service.go、src/controllers/file_controller.go） |
 
 ## 7. AI 编码指南
 
-- 存储只走 FileDao/t_file，勿引 oss。（src/service/file_service.go；oss 无 import 方）
-- 入库文件名必须过 cleanFileName 防路径遍历。（src/service/file_service.go）
-- 改上传/下载需同步内外两份重复 Controller。（src/controllers/exfile_controller.go、src/controllers/file_controller.go）
-- 链路为整读整写非流式，引流式须评估 bytea 整存模型。（src/controllers/exfile_controller.go、src/models/db/file.go）
-- LOCAL_MODE 仅切换 DB 类型，代码路径不变。（src/dao/db_init.go）
+- 改路由需同步内外两个控制器与注册处（src/routers/beego_router.go）
+- 文件名必须先清洗再入库，禁含路径分隔符（src/service/file_service.go）
+- 同名上传是覆盖语义，改新增语义需先判存（src/service/file_service.go）
+- 上传无大小限制，加限制需在两处上传入口同改（src/controllers/exfile_controller.go）
+- 文件实际落库非对象存储，换存储需重写数据层（src/dao/file.go）
