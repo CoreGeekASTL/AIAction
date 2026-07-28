@@ -1,47 +1,61 @@
 ---
 name: interface-feature-analyzer
+<<<<<<< HEAD:.claude/skills/spec-feature-extraction/SKILL.md
 description: 以接口为入口分析存量代码仓，将接口按"每几个接口对应一类功能"聚类为功能域，按功能维度提取软件要素（模块划分、接口清单、关键数据结构、调用关系），每个功能产出一篇 md，统一归档到代码仓 docs/story/ 目录并附索引 README。当需要梳理代码仓外部接口与功能地图、按功能维度沉淀架构资产、为 AI 代码生成提供"功能-接口-模块-数据结构"链路知识、或为接口治理/架构评审/新人上手提供功能级文档时使用。
+=======
+description: 扫描存量代码仓**对外提供的接口**（服务自己暴露给外部调用的入口：HTTP 路由注册 / RPC service 注册 / 消息订阅 handler / IDL 契约），按功能分组，产出**一份**人类友好的单一 markdown 文档：每个功能下列接口表格（接口名/作用/所在文件/方法/路径），表格下方逐个说明该接口相关的请求与响应数据结构。当需要盘点代码仓对外提供哪些接口、梳理对外接口清单、为接口治理/接口文档/新人上手提供文档时使用。触发场景包括"代码仓对外提供什么接口""对外接口""外部接口""服务暴露的接口""接口清单""接口盘点""接口文档"等。
+>>>>>>> 512daa4 (修改接口分析 skill):.claude/skills/interface-feature-analyzer/SKILL.md
 ---
 
-# 基于接口的功能维度软件要素提取
+# 代码仓对外接口文档生成
 
-从存量代码仓的接口出发，按功能聚类并提取软件要素，产出人与 AI 共同消费的功能级架构资产。
+从存量代码仓出发，盘点**本仓对外提供的接口**（服务自己暴露给外部调用的入口），按功能分组产出一份人类友好的单一 markdown 文档。
 
-分析遵循五步工作流：
+> 注意：本 skill 的"对外接口"= 本仓作为服务端暴露给外部调用的入口（HTTP 路由 / RPC service / 消息订阅 handler / IDL 契约），**不是**本仓调用别人的接口（那是消费侧）。仓内模块间的语言级 interface 契约不算对外接口，不纳入。
 
+<<<<<<< HEAD:.claude/skills/spec-feature-extraction/SKILL.md
 1. 明确范围与目的
 2. 接口探测（扫描脚本 + IDL/路由清单交叉核对）
 3. 接口聚类为功能域
 4. 按功能维度提取软件要素（模块划分/接口/关键数据结构/调用关系）
 5. 生成功能文档（每个功能一篇 md，归档到 docs/story/）
+=======
+分析遵循三步轻量工作流：
+>>>>>>> 512daa4 (修改接口分析 skill):.claude/skills/interface-feature-analyzer/SKILL.md
 
-## 第 1 步：明确范围与目的
+1. 明确范围与排除目录
+2. 扫描对外接口注册点（脚本 + 交叉核对）
+3. 产出单一文档 `docs/interface/external-interfaces.md`
 
-- 确认代码仓路径、主要语言、需要排除的目录（生成代码、第三方代码、测试目录是否纳入）。
-- 确认分析目的，据此选择深度：
-  - **接口盘点/汇报** → 浅（接口清单 + 功能归类）
-  - **架构文档/新人上手** → 中（功能要素级：模块、接口、数据结构、调用关系）
-  - **AI 代码生成资产/接口治理** → 深（资产级，默认，含调用链路与 AI 编码指南）
-- 用户未说明时，默认按"深（资产级）"执行，面向 AI 代码生成产出。
+## 第 1 步：明确范围与排除目录
 
-## 第 2 步：接口探测
+- 确认代码仓路径、主要语言、Web 框架（Beego/gin/Spring/FastAPI 等）。
+- 确认排除目录（生成代码、第三方 vendor）。默认排除：`vendor/` `node_modules/` `third_party/` `*_gen/` `*.pb.go` 等；测试目录**默认纳入**（测试中的路由/订阅也列出，标注"仅测试使用"）。
+- 确认是否包含消息订阅/定时任务入口：默认包含（异步入口也是对外提供的服务能力）。
+
+## 第 2 步：扫描对外接口注册点
 
 两条线并行，再交叉核对：
 
-1. **IDL/契约清单**：查找 proto、thrift、OpenAPI/Swagger yaml、graphQL schema 等接口契约文件，提取 service/rpc/path 定义。
+1. **IDL/契约文件**：查找 `*.proto`、`*.thrift`、`*.graphql`、OpenAPI/Swagger `*.yaml` 等接口契约文件，提取 service/rpc/path 定义。
 2. **代码扫描**：运行内置扫描脚本：
 
 ```bash
 python3 <skill_dir>/scripts/scan_interfaces.py <repo_path> -o scan_result.md
-# 可选：--lang go|java|cpp|python 限定语言；--format json 输出结构化结果
+# 可选：--lang go|java|cpp|python 限定语言；--format json 结构化结果
 ```
 
-3. **查漏**：对照 references/interface-catalog.md 的四类接口逐项核对——IDL 契约里有但代码扫描没命中（或反之）的必须追查；特别注意目录中列出的"易遗漏项"（IDL 生成代码虚增、内部接口与外部接口混杂、同接口多实现、消息/事件订阅接口未走显式定义）。区分**外部接口**（对本仓外部暴露）与**内部接口**（仓内模块间契约），外部接口优先分析。
+脚本扫描三类对外接口注册点：
+- **IDL/契约类**：proto service/rpc、thrift service、OpenAPI paths、GraphQL Query/Mutation/Subscription
+- **框架路由类**：HTTP/RPC 入口注册点（Beego/gin/echo/chi、grpc Register、net/http HandleFunc、Spring MVC 注解、Dubbo、FastAPI/Flask/Django、C/C++ 注册表）
+- **消息/事件订阅类**：MQ 消费订阅、事件注册、定时任务入口
 
-## 第 3 步：接口聚类为功能域
+3. **交叉核对**：IDL 契约与代码实现交叉核对——有契约无实现=未落地；有实现无契约=自研隐式接口。注意"易遗漏项"（IDL 生成代码虚增、同接口多实现、消息/事件订阅未走显式定义、宏/表驱动注册、网关透传、已下线接口）。详见 references/interface-catalog.md。
+4. **按功能分组**：将扫描到的接口按业务功能聚类（如"用户认证""白名单管理""配置同步"），**禁止按技术层命名**（如"controller 层"）。聚类依据按优先级：路由路径前缀 → controller/service 归属 → IDL service 分组 → 业务语义相近。每功能一般 2~10 个接口；超过 10 个考虑拆分。
 
-将探测到的接口按功能聚类，遵循"每几个接口对应一类功能"的原则：
+## 第 3 步：产出单一文档
 
+<<<<<<< HEAD:.claude/skills/spec-feature-extraction/SKILL.md
 - **聚类依据**（按优先级）：IDL 中的 service/模块分组 → 路由路径前缀（如 /api/v1/order/*）→ 包/目录归属 → 共享的关键数据结构 → 业务语义相近。
 - 每个功能域命名采用业务语义名（如"用户认证""订单管理""告警订阅"），禁止按技术层命名（如"controller 层"）。
 - 控制粒度：一个功能域一般包含 2~10 个接口；超过 10 个考虑拆分，只有 1 个接口且语义独立时允许单独成功能域。
@@ -76,12 +90,24 @@ python3 <skill_dir>/scripts/scan_interfaces.py <repo_path> -o scan_result.md
 ├── feature-user-auth.md         # 每功能一篇软件要素文档
 ├── feature-order-manage.md
 └── ...
+=======
+只产出**一份** `docs/interface/external-interfaces.md`，按 references/report-template.md 的模板组织。结构如下（人类友好设计）：
+
+```
+<repo>/docs/interface/external-interfaces.md   # 唯一产出
+>>>>>>> 512daa4 (修改接口分析 skill):.claude/skills/interface-feature-analyzer/SKILL.md
 ```
 
-文件命名规则：`feature-<功能名>.md`，全小写 kebab-case，功能名用英文短名（如 feature-user-auth.md）。
+1. **接口全景**（顶部）：一张 mermaid 图（本仓为中心节点 → 各功能域节点，节点按功能命名）+ "功能域清单表"（功能名 | 接口数 | 核心模块 | 章节锚点）+ 接口统计（HTTP/RPC/消息订阅 各多少）。
+2. **各功能域详述**（主体，每个功能一节）：
+   - 一句话定位（该功能解决什么业务问题）
+   - **接口表格**：列含 接口名 | 作用 | 所在文件 | 方法/路径（HTTP 填 `POST /api/v1/xxx`，RPC 填 `UserService.GetUser`，消息订阅填 `Consume topic-xxx`）
+   - **表格下方逐个接口的数据结构说明**：针对接口表格里的每个接口，说明其请求与响应数据结构（结构名 + 定义位置 + 关键字段+约束），同功能内多接口共用的结构只在首次出现处详述，后续注明"同上"
+3. **风险与注意点**（可选，末尾）：列出无鉴权、无超时、无参数校验、明文凭据、已下线接口残留等风险点，每条带证据。
 
-两个模板均见 references/report-template.md：
+人类友好硬性要求：
 
+<<<<<<< HEAD:.claude/skills/spec-feature-extraction/SKILL.md
 1. **索引 README.md**：功能全景清单（每行链接到对应功能 md，含接口数统计）、接口总量与分类统计（外部/内部）、使用说明（AI 编码时如何按功能查阅）。探测到但未纳入任何功能域的接口要单列"未归类接口"一节，证明排查过。
 2. **每功能一篇 `feature-<功能名>.md`**：功能概述 + 七节固定结构，按 L1/L2/L3 三层阅读旅程组织，L1 在前——
    - **L1 功能故事（多彩建模，给新人读）**：开头 1~3 句「实现逻辑速览」，每句 ≤30 字，言简意赅概括代码实现的逻辑（如"登录先建档，再按绑定有效性复用或重分实例"）；随后一张 mermaid 四色建模图呈现业务逻辑（粉=事件主干人话命名、黄=角色含内外部系统边界、绿=实体及状态变更、蓝=规则/约束挂实体），每个粉色事件必须具备触发者/输入/输出/后继四要素；后接术语表（全文业务黑话逐个翻译：术语 | 一句话人话解释 | 出处文件，禁止只写英文全称）。事件名禁止出现文件名/函数名/行号。
@@ -90,13 +116,25 @@ python3 <skill_dir>/scripts/scan_interfaces.py <repo_path> -o scan_result.md
    - 全文证据粒度到文件级：只写文件路径，不写行号。
 
 更新策略：docs/story/ 已存在时，按功能逐篇对比更新（功能已下线则标注"已下线"），不要整目录覆盖重写；README.md 索引随功能增删同步更新。
+=======
+- 每个功能域一节，**按业务功能命名**，禁止按技术层命名。
+- 接口必须用**表格**列出（接口名/作用/所在文件/方法或路径），禁止散文段落描述单个接口。
+- 每个接口的请求/响应数据结构**写在接口表格下方**，逐个接口说明，不要把所有数据结构堆成一张孤立的大表。
+- 所有结论附 `文件:行号` 证据，相对代码仓根目录。
+- 数据结构只列关键字段与约束，不整段搬运 struct 定义；超过 8 字段只列关键。
+- 顶部"功能域清单表"每行带章节锚点链接，可从总览直跳详情。
+- 接口总数 > 30 时，按功能域分组后，单功能域接口 > 10 个的列代表性 5~10 个并注明"全量见 xxx"，禁止全量罗列刷屏。
+
+更新策略：`docs/interface/external-interfaces.md` 已存在时按功能域逐节对比更新（接口已下线则标注"已下线"并保留一节灰显），不要整篇覆盖重写。
+>>>>>>> 512daa4 (修改接口分析 skill):.claude/skills/interface-feature-analyzer/SKILL.md
 
 ## 质量检查清单
 
 交付前逐项确认：
 
-- [ ] 四类接口（IDL 契约、框架路由、语言接口、消息/事件订阅）全部排查过
+- [ ] 三类对外接口（IDL 契约/框架路由/消息订阅）全部排查过，未命中类目已确认"确实没有"
 - [ ] IDL 契约与代码实现已交叉核对，生成代码未虚增接口统计
+<<<<<<< HEAD:.claude/skills/spec-feature-extraction/SKILL.md
 - [ ] 外部接口（对本仓外暴露）全部归入功能域；接口清单只含对外接口，无语言级内部接口小节
 - [ ] 每个功能一篇 md，全部归档在 `docs/story/`，命名符合 `feature-<功能名>.md`
 - [ ] README.md 索引中每个清单条目都能链接到存在的功能 md，无死链；未归类接口已单列说明
@@ -109,9 +147,21 @@ python3 <skill_dir>/scripts/scan_interfaces.py <repo_path> -o scan_result.md
 - [ ] 接口清单与数据结构均为表格，无段落式散文；同接口多实现的选择机制在模块划分或调用关系中说明
 - [ ] 框架引用表逐行有代码事实依据（引用文件），且链接到存在的框架使用文档，无死链
 - [ ] 每篇 md 文末 AI 编码指南每条 ≤30 字、附证据文件锚点、无空泛表述（如"建议合理设计"）
+=======
+- [ ] 同接口多实现已全部列出并标注选择机制
+- [ ] 只产出单一 `docs/interface/external-interfaces.md`，未拆多篇
+- [ ] 顶部含 mermaid 接口全景图 + 功能域清单表（含章节锚点链接，无死链）
+- [ ] 每个功能域一节含：定位 / **接口表格** / **表下逐接口数据结构说明**
+- [ ] 接口表格列含 接口名 / 作用 / 所在文件 / 方法或路径，无段落式散文
+- [ ] 每个接口的请求/响应数据结构写在接口表格下方逐个说明，共用结构注明"同上"
+- [ ] 所有结论附 `文件:行号` 证据，相对代码仓根目录
+- [ ] 数据结构只列关键字段与约束，未整段搬运 struct 定义
+- [ ] 功能域按业务功能命名，无"controller 层""service 层"等技术层命名
+- [ ] 风险点（若有）已带证据列出，未列"建议合理设计"类空泛表述
+>>>>>>> 512daa4 (修改接口分析 skill):.claude/skills/interface-feature-analyzer/SKILL.md
 
 ## 参考文件索引
 
-- references/interface-catalog.md — 四类接口清单、探测线索、易遗漏项（第 2 步用）
-- references/report-template.md — 输出模板：README.md 索引 + 每功能一篇软件要素 md（第 5 步用）
-- scripts/scan_interfaces.py — 接口定义扫描脚本，内置常见框架与 IDL 模式库（第 2 步用）
+- references/interface-catalog.md — 三类对外接口的探测线索、模式示例、易遗漏项（第 2 步用）
+- references/report-template.md — 单一文档输出模板：全景图 + 按功能分组 + 接口表格 + 表下数据结构说明（第 3 步用）
+- scripts/scan_interfaces.py — 对外接口注册点扫描脚本，内置三类模式库（第 2 步用）

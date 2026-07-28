@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""scan_interfaces.py — 存量代码仓接口定义扫描脚本（interface-feature-analyzer 第 2 步用）
+"""scan_interfaces.py — 存量代码仓对外接口注册点扫描脚本（interface-feature-analyzer 第 2 步用）
 
-扫描四类接口定义并输出带 文件:行号 证据的清单：
-  1. IDL/契约类：proto service/rpc、thrift service、OpenAPI paths、GraphQL Query/Mutation
-  2. 框架路由类：Go(gin/echo/grpc/net-http)、Java(Spring/Dubbo)、Python(FastAPI/Flask/Django)、C/C++ 注册点
-  3. 语言级接口：Go interface、Java interface、C++ 纯虚抽象类、Python ABC/Protocol、C ops 结构体
-  4. 消息/事件/定时入口：MQ 消费订阅、事件注册、定时任务
+扫描方向：本仓对外提供的接口（服务端暴露给外部调用的入口），三类注册点：
+  1. IDL/契约类：proto service/rpc、thrift service、OpenAPI paths、GraphQL Query/Mutation/Subscription
+  2. 框架路由类：Beego/gin/echo/chi 路由、grpc RegisterServer、net/http HandleFunc、
+     Spring MVC 注解、Dubbo、FastAPI/Flask/Django、C/C++ 注册表、Beego 注解路由
+  3. 消息/事件/定时入口：MQ 消费订阅、事件注册、定时任务
 
 自动排除：生成代码（DO NOT EDIT 头、gen/proto 生成目录）、第三方目录（vendor/node_modules 等）。
+测试目录默认纳入，命中行标 [test] 便于人工区分。
 
 用法：
   python3 scan_interfaces.py <repo_path> [-o scan_result.md] [--lang go|java|cpp|python] [--format json]
@@ -25,9 +26,9 @@ from collections import defaultdict
 EXCLUDE_DIRS = {
     "vendor", "node_modules", "third_party", "thirdparty", "3rd", "3rdparty",
     ".git", ".idea", ".vscode", "dist", "build", "out", "target", "bin",
-    "__pycache__", ".tox", "venv", ".venv", "test", "tests", "testdata",
+    "__pycache__", ".tox", "venv", ".venv", "testdata",
 }
-EXCLUDE_DIR_PARTS = ("/gen/", "/generated/", "/gen-go/", "/proto_gen/")
+EXCLUDE_DIR_PARTS = ("/gen/", "/generated/", "/gen-go/", "/proto_gen/", "/pb-go/", "/pb-java/")
 
 GENERATED_HEADER = re.compile(r"(DO NOT EDIT|Code generated|auto-?generated)", re.I)
 GENERATED_FILE_SUFFIX = (
@@ -38,7 +39,6 @@ GENERATED_FILE_SUFFIX = (
 # ---- 模式库：{类别: [(子类型, 语言, 正则, 说明)]} ----
 # 语言字段用于 --lang 过滤：any 表示跨语言（如 IDL 文件）
 
-# IDL 模式按扩展名区分文件，避免 thrift 模式误中 proto 等同名关键字
 IDL_PATTERN_EXT = {
     "proto-service": (".proto",),
     "proto-rpc": (".proto",),
@@ -56,6 +56,9 @@ PATTERNS = {
         ("graphql-op", "any", re.compile(r"^\s*type\s+(Query|Mutation|Subscription)\b"), "GraphQL 入口类型"),
     ],
     "framework_route": [
+        ("go-beego", "go", re.compile(r"\bbeego\.(Router|NewNamespace|Namespace|AutoRouter|Group|Include)\s*\(|\bweb\.Router\s*\("), "Go Beego 路由注册"),
+        ("go-beego-annot", "go", re.compile(r"^\s*//\s*;\s*(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\s+(/\S+)"), "Beego 注解路由"),
+        ("go-routemap", "go", re.compile(r"\b\w*(RouteMapping|RouteMap|Routes|Handlers)\s*:\s*map\b"), "自封装路由表注册（map 字段初始化，需人工展开）"),
         ("go-gin", "go", re.compile(r'\b(\w+(?:\.\w+)*)\.(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS|Any|Handle)\s*\(\s*"([^"]*)"'), "Go gin/echo/chi 路由"),
         ("go-grpc-register", "go", re.compile(r"\bRegister(\w+)Server\s*\("), "Go gRPC 服务注册"),
         ("go-nethttp", "go", re.compile(r'\b(?:http\.)?Handle(?:Func)?\s*\(\s*"([^"]*)"'), "Go net/http 路由"),
@@ -64,13 +67,6 @@ PATTERNS = {
         ("py-fastapi", "python", re.compile(r'@(\w+)\.(get|post|put|delete|patch|api_route|route)\s*\(\s*["\']([^"\']*)'), "FastAPI/Flask 路由"),
         ("py-django-url", "python", re.compile(r'\bpath\s*\(\s*["\']([^"\']*)["\']'), "Django urlpatterns"),
         ("cpp-register", "cpp", re.compile(r"\b(Reg(?:ister)?(?:Handler|Service|Msg|Cmd|Api))\w*\s*\("), "C/C++ handler/服务注册点"),
-    ],
-    "language_interface": [
-        ("go-interface", "go", re.compile(r"^\s*type\s+(\w+)\s+interface\s*\{"), "Go interface"),
-        ("java-interface", "java", re.compile(r"^\s*(?:public\s+)?(?:abstract\s+)?interface\s+(\w+)"), "Java interface"),
-        ("cpp-pure-virtual", "cpp", re.compile(r"virtual\s+[\w:<>,\s*&]+\s+(\w+)\s*\([^)]*\)\s*(?:const\s*)?=\s*0\s*;"), "C++ 纯虚函数"),
-        ("c-ops-struct", "cpp", re.compile(r"struct\s+(\w+_(?:ops|operations|vtable|fns))\s*\{"), "C 函数指针表结构"),
-        ("py-abc", "python", re.compile(r"class\s+(\w+)\s*\([^)]*(?:ABC|Protocol)[^)]*\)"), "Python ABC/Protocol"),
     ],
     "async_entry": [
         ("mq-consume", "any", re.compile(r"\b(Subscribe|Consume|AddConsumer|RegisterListener)\w*\s*\(|@KafkaListener|@RocketMQMessageListener"), "MQ 消费订阅"),
@@ -81,8 +77,7 @@ PATTERNS = {
 
 CATEGORY_TITLE = {
     "idl_contract": "IDL/契约类接口",
-    "framework_route": "框架路由类接口（HTTP/RPC 入口）",
-    "language_interface": "语言级接口（模块间契约）",
+    "framework_route": "框架路由类接口（HTTP/RPC 入口注册）",
     "async_entry": "消息/事件/定时入口",
 }
 
@@ -95,6 +90,9 @@ LANG_EXT = {
 IDL_EXT = (".proto", ".thrift", ".graphql", ".gql", ".fbs", ".capnp", ".yaml", ".yml")
 
 MAX_MATCHES_PER_PATTERN = 500  # 单模式命中上限，防止宏/表驱动注册刷屏
+
+# 测试路径检测（命中行标 [test]）
+TEST_SEG = re.compile(r"(^|/)(test|tests|_test|__tests__|spec|specs)/|(_test\.go$|_test\.py$|Test\.java$|_spec\.go$)")
 
 
 def is_generated(path):
@@ -111,8 +109,12 @@ def file_lang(path):
     return "any" if path.endswith(IDL_EXT) else None
 
 
+def is_test_path(rel):
+    return bool(TEST_SEG.search(rel.replace(os.sep, "/")))
+
+
 def scan(repo, lang_filter=None):
-    """返回 {类别: [(子类型, 相对路径, 行号, 行内容)]}"""
+    """返回 {类别: [(子类型, 相对路径, 行号, 行内容, is_test)]}"""
     hits = defaultdict(list)
     pattern_count = defaultdict(int)
     for root, dirs, files in os.walk(repo):
@@ -135,6 +137,7 @@ def scan(repo, lang_filter=None):
                     lines = head.splitlines() + f.readlines()
             except OSError:
                 continue
+            test_flag = is_test_path(rel)
             for category, plist in PATTERNS.items():
                 for subtype, plang, regex, _desc in plist:
                     key = (category, subtype)
@@ -155,36 +158,37 @@ def scan(repo, lang_filter=None):
                             continue
                     for lineno, line in enumerate(lines, 1):
                         if regex.search(line):
-                            hits[category].append((subtype, rel, lineno, line.strip()[:160]))
+                            hits[category].append((subtype, rel, lineno, line.strip()[:160], test_flag))
                             pattern_count[key] += 1
     return hits
 
 
 def to_markdown(hits, repo):
-    out = [f"# 接口扫描结果\n", f"> 代码仓：`{os.path.abspath(repo)}`\n"]
+    out = [f"# 对外接口注册点扫描结果\n", f"> 代码仓：`{os.path.abspath(repo)}`\n"]
     total = 0
     for category in PATTERNS:
         rows = hits.get(category, [])
         total += len(rows)
         out.append(f"\n## {CATEGORY_TITLE[category]}（{len(rows)} 处）\n")
         if not rows:
-            out.append("（未命中——需人工确认是确实没有还是扫描遗漏）\n")
+            out.append("（未命中——需人工确认是确实没有还是扫描遗漏，参见 interface-catalog.md 易遗漏项）\n")
             continue
         by_subtype = defaultdict(list)
-        for subtype, rel, lineno, line in rows:
-            by_subtype[subtype].append((rel, lineno, line))
+        for subtype, rel, lineno, line, test_flag in rows:
+            by_subtype[subtype].append((rel, lineno, line, test_flag))
         for subtype, items in sorted(by_subtype.items()):
             out.append(f"\n### {subtype}（{len(items)}）\n")
-            for rel, lineno, line in items[:100]:
-                out.append(f"- `{rel}:{lineno}` — `{line}`")
+            for rel, lineno, line, test_flag in items[:100]:
+                tag = " `[test]`" if test_flag else ""
+                out.append(f"- `{rel}:{lineno}`{tag} — `{line}`")
             if len(items) > 100:
                 out.append(f"- ……（其余 {len(items) - 100} 条略，用 grep 补全）")
-    out.insert(2, f"\n共命中 **{total}** 处接口定义/注册点。本清单为线索入口，聚类与精读需结合 grep 补全。\n")
+    out.insert(2, f"\n共命中 **{total}** 处对外接口注册点。本清单为线索入口，按功能分组与精读需结合 grep 补全。\n")
     return "\n".join(out) + "\n"
 
 
 def main():
-    ap = argparse.ArgumentParser(description="存量代码仓接口定义扫描")
+    ap = argparse.ArgumentParser(description="存量代码仓对外接口注册点扫描")
     ap.add_argument("repo", help="代码仓路径")
     ap.add_argument("-o", "--output", help="输出文件（默认 stdout）")
     ap.add_argument("--lang", choices=["go", "java", "cpp", "python"], help="限定语言")
@@ -198,8 +202,8 @@ def main():
     if args.format == "json":
         data = {
             cat: [
-                {"subtype": st, "file": rel, "line": ln, "text": text}
-                for st, rel, ln, text in rows
+                {"subtype": st, "file": rel, "line": ln, "text": text, "test": tf}
+                for st, rel, ln, text, tf in rows
             ]
             for cat, rows in hits.items()
         }
