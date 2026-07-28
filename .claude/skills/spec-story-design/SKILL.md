@@ -7,7 +7,9 @@ description: 当接收到需求设计文档（SR/特性设计），需要为存�
 
 接收一篇需求设计文档，结合存量架构资产（framework-usage 框架指导 + story 功能文档），产出一篇**与 docs/story/ 既有功能文档格式与内容一致**的新 story 设计文档。
 
-与 interface-feature-analyzer 的本质区别：该 skill 面向**尚未实现的新功能**，证据两源为「需求文档章节」与「存量代码文件（复用点/注入点）」，规划中的文件路径标注"（规划）"；interface-feature-analyzer 面向存量代码的事实归纳。
+与存量接口分析类 skill 的本质区别：本 skill 面向**尚未实现的新功能**，证据两源为「需求文档章节」与「存量代码文件（复用点/注入点）」，规划中的文件路径标注"（规划）"；存量分析类 skill 面向存量代码的事实归纳。
+
+**自包含原则**：本 skill 所需模板与方法论文件全部归档在自身 references/ 目录下，不依赖其它 skill 的文件。
 
 ## 工作流（顺序不可颠倒）
 
@@ -23,13 +25,13 @@ description: 当接收到需求设计文档（SR/特性设计），需要为存�
 
 **存量资产缺失时的降级（任一缺失不阻断流程）：**
 
-- `docs/story/` 不存在或为空：跳过关系分析（无复用/注入对象），格式基准直接采用 interface-feature-analyzer/references/report-template.md；归档时新建目录并从模板一生成 README.md 索引。
+- `docs/story/` 不存在或为空：跳过关系分析（无复用/注入对象），格式基准直接采用 references/story-template.md；归档时新建目录并从模板一生成 README.md 索引。
 - `docs/framework-usage/` 不存在：跳过框架分析，「框架引用」节按模板规则省略，并在 README 索引注明"仓内无框架使用文档"。
-- 两者均不存在（全新仓首篇 story 设计）：格式基准与多彩建模方法论仍以两个参考文件为准（report-template.md、color-modeling.md），产出物形态不变。
+- 两者均不存在（全新仓首篇 story 设计）：格式基准与多彩建模方法论仍以本目录两个参考文件为准（story-template.md、color-modeling.md），产出物形态不变。
 
 ### 第 3 步：先完成多彩建模（L1 功能故事）
 
-**必须先完成本节，再进入第 4 步。**按 spec-logic-audit/references/color-modeling.md 方法论：
+**必须先完成本节，再进入第 4 步。**按 references/color-modeling.md 方法论：
 
 1. **实现逻辑速览**：1~3 句，每句 ≤30 字，概括设计后的实现逻辑（业务语言，禁文件名/函数名）。
 2. **四色建模图**（mermaid flowchart + classDef 固定配色：粉 #ffd1dc / 黄 #fff3b0 / 绿 #c8e6c9 / 蓝 #bbdefb）：粉色事件链来自需求文档的流程机制（主干时序+分支），黄色角色含内外部系统边界，绿色实体标注状态变更（含缓存等内存态实体），蓝色规则挂实体（校验规则/规格上限/逃生策略）。每个粉色事件必须具备 触发者/输入/输出/后继 四要素。
@@ -38,7 +40,7 @@ description: 当接收到需求设计文档（SR/特性设计），需要为存�
 
 ### 第 4 步：再完成其它设计（L2/L3）
 
-按 docs/story/ 既有格式（模板见 interface-feature-analyzer/references/report-template.md）依次产出：
+按 references/story-template.md 的格式（与 docs/story/ 既有文档同构）依次产出：
 
 1. **模块划分**：mermaid 依赖图 + 承载功能表。映射到本仓既有分层（controllers/service/dao/models/routers），新模块标"（规划）"，复用模块标"（复用，<文件>）"，职责边界遵循需求文档的模块职责约束。
 2. **接口清单**：只列对外接口（含新增接口与既有链路的注入点，注入点单独标注"注入"），五列表格：接口 | 路径/入口 | 请求结构 | 响应结构 | 状态（新功能接口状态取"设计中"）。
@@ -67,7 +69,7 @@ description: 当接收到需求设计文档（SR/特性设计），需要为存�
 
 ## 参考文件索引
 
-- spec-logic-audit/references/color-modeling.md — 多彩建模方法论（第 3 步用）
-- interface-feature-analyzer/references/report-template.md — docs/story 文档格式基准（第 4 步用）
+- references/color-modeling.md — 多彩建模方法论（第 3 步用，本目录自包含副本）
+- references/story-template.md — story 设计文档输出模板：README 索引 + 七节结构（第 4、5 步用）
 - docs/framework-usage/README.md — 框架使用文档索引（第 2、4 步用）
 - docs/story/README.md — 既有功能文档索引与格式实例（第 2、5 步用）

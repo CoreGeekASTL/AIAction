@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""scan_interfaces.py — 存量代码仓对外接口注册点扫描脚本（interface-feature-analyzer 第 2 步用）
+"""scan_interfaces.py — 存量代码仓对外接口注册点扫描脚本（spec-feature-analyze 第 2 步用）
 
 扫描方向：本仓对外提供的接口（服务端暴露给外部调用的入口），三类注册点：
   1. IDL/契约类：proto service/rpc、thrift service、OpenAPI paths、GraphQL Query/Mutation/Subscription
