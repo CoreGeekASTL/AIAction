@@ -1,6 +1,6 @@
 ---
 name: framework-usage-analyzer
-description: 分析存量代码仓中的基础框架（RPC、线程池、Actor、日志、序列化、配置、依赖注入、存储/ORM、消息队列、调度、资源池、容错治理、监控、基础库、测试框架等）及其使用方式，按部件维度产出框架使用指导——每个框架一篇 md（含初始化与配置、典型使用模式、封装层与扩展点、约定规范、AI 编码指南），统一归档到代码仓 doc/framework-usage/ 目录并附索引 README。当需要盘点代码仓技术栈、梳理框架使用模式与调用点分布、为 AI 代码生成沉淀"框架使用知识"、或为重构/迁移/新人上手提供框架使用文档时使用。
+description: 分析存量代码仓中的基础框架（RPC、线程池、Actor、日志、序列化、配置、依赖注入、存储/ORM、消息队列、调度、资源池、容错治理、监控、基础库、测试框架等）及其使用方式，按部件维度产出框架使用指导——每个框架一篇 md（含初始化与配置、典型使用模式、封装层与扩展点、约定规范、AI 编码指南），统一归档到代码仓 docs/framework-usage/ 目录并附索引 README。当需要盘点代码仓技术栈、梳理框架使用模式与调用点分布、为 AI 代码生成沉淀"框架使用知识"、或为重构/迁移/新人上手提供框架使用文档时使用。
 ---
 
 # 存量代码基础框架分析
@@ -13,7 +13,7 @@ description: 分析存量代码仓中的基础框架（RPC、线程池、Actor�
 2. 框架探测（依赖清单 + 扫描脚本）
 3. 使用点定位与聚类
 4. 用法模式分析
-5. 生成框架使用指导文档（按部件维度归档到 doc/framework-usage/）
+5. 生成框架使用指导文档（按部件维度归档到 docs/framework-usage/）
 
 ## 第 1 步：明确范围与目的
 
@@ -58,10 +58,10 @@ python3 <skill_dir>/scripts/scan_frameworks.py <repo_path> -o scan_result.md
 
 ## 第 5 步：生成框架使用指导文档（按部件维度归档）
 
-按部件（框架）维度拆分输出，**每个框架一篇 md**，统一归档到代码仓 `doc/framework-usage/` 目录：
+按部件（框架）维度拆分输出，**每个框架一篇 md**，统一归档到代码仓 `docs/framework-usage/` 目录：
 
 ```
-<repo>/doc/framework-usage/
+<repo>/docs/framework-usage/
 ├── README.md                        # 索引：框架全景清单 + 风险汇总 + 文件导航
 ├── rpc-grpc.md                      # 每框架一篇使用指导
 ├── concurrency-task-executor.md
@@ -85,7 +85,7 @@ python3 <skill_dir>/scripts/scan_frameworks.py <repo_path> -o scan_result.md
 - [ ] 十六类框架全部排查过（含未命中的）
 - [ ] 依赖清单版本与代码实际使用一致（已交叉核对）
 - [ ] 自研/内部框架已识别并纳入分析
-- [ ] 每个框架一篇 md，全部归档在 `doc/framework-usage/`，命名符合 `<类别缩写>-<框架名>.md`
+- [ ] 每个框架一篇 md，全部归档在 `docs/framework-usage/`，命名符合 `<类别缩写>-<框架名>.md`
 - [ ] README.md 索引中每个清单条目都能链接到存在的框架 md，无死链
 - [ ] 每框架结论均有 `文件:行号` 证据
 - [ ] 已区分封装层使用与裸 API 使用

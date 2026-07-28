@@ -1,6 +1,6 @@
 # 输出模板
 
-两套模板：README.md 索引 + 每功能一篇软件要素 md。所有文档归档到 `<repo>/docs/story/`。
+两套模板：README.md 索引 + 每功能一篇软件要素 md。所有文档归档到 `<repo>/docs/interface/`。
 
 ## 模板一：README.md 索引
 
