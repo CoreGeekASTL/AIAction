@@ -3,7 +3,7 @@
 > 由 interface-feature-analyzer 生成/更新，面向人与 AI 共同消费。
 > 代码仓：GIDS（GlobalInstanceDeliverService，云浏览器全局实例交付服务，Go + Beego v2）　分析基准：main @ 58597c8　更新时间：2026-07-26
 
-服务形态：双 HTTP 监听——外部 HTTPS（默认 40051，src/routers/beego_router.go:17 `RegisterExternalRouter`）与内部 HTTP（默认 9090，src/routers/beego_router.go:28 `RegisterInternalRouter`）；路由由各 Controller 的 `RouteInfo().RouteMapping` 集中声明（src/routers/beego_router.go:41-47）。无 IDL 契约文件（proto/thrift/OpenAPI 均未命中），接口以框架路由 + Go 语言级 interface 为准。
+服务形态：双 HTTP 监听——外部 HTTPS（默认 40051，src/routers/beego_router.go `RegisterExternalRouter`）与内部 HTTP（默认 9090，同文件 `RegisterInternalRouter`）；路由由各 Controller 的 `RouteInfo().RouteMapping` 集中声明。无 IDL 契约文件（proto/thrift/OpenAPI 均未命中），接口以框架路由为准。
 
 ## 功能全景
 
@@ -21,18 +21,22 @@
 ## 接口统计
 
 - 去重后 HTTP 业务路径 28 个：外部监听暴露 9 个（登录 3、文件 2、事件 2、缓存 1、测试桩 1），内部监听注册 28 个（含与外部同名重复的 8 个）。
-- 非 HTTP 入口：证书订阅 3 个场景（src/common/cert/cert.go:85-101）、流量统计定时清理 1 个（src/scheduler/task_scheduler.go:38）。
-- 语言级内部接口（模块间契约）：service 层 9 个 + dao/common 若干，全部归入上述功能域的"接口清单-语言级内部接口"小节。
+- 非 HTTP 入口：证书订阅 3 个场景（src/common/cert/cert.go）、流量统计定时清理 1 个（src/scheduler/task_scheduler.go）。
+- 语言级内部接口（仓内模块间契约）仅用于分析理解，不写入功能文档。
 - 已下线：0 个（探测到的接口均有路由注册，无注释残留路由）。
+
+## 框架引用
+
+各功能文档第 6 节「框架引用」逐功能列出使用的基础框架，框架使用指导见 [../framework-usage/README.md](../framework-usage/README.md)。
 
 ## 未归类接口
 
 以下接口/组件探测到但未纳入任何功能域，原因逐条说明：
 
-- `GET /test/v1/get`（TestController，src/controllers/test_controller.go:19-22，注册于外部监听 src/routers/beego_router.go:24）——测试连通性桩接口，非业务功能。
-- `MonitorService`（src/service/monitor_service.go:24-29，main.go:90 启动）——指标采集上报内部支撑组件，无对外 HTTP 接口，属于平台监控框架范畴。
-- `common/storage/redis` 包（src/common/storage/redis/redis.go:56-67）——已封装 Client/Object 接口但全仓无 importer、main 未初始化，属未接线代码；缓存管理实际走 HTTP 到 BrowserGW（详见 [feature-cache-manage.md](feature-cache-manage.md)）。
-- `common/storage/oss` minio 封装（src/common/storage/oss/minio.go:20）——同样无调用方，文件实际落 DB（详见 [feature-file-manage.md](feature-file-manage.md)）。
+- `GET /test/v1/get`（TestController，src/controllers/test_controller.go，注册于外部监听）——测试连通性桩接口，非业务功能。
+- `MonitorService`（src/service/monitor_service.go，main.go 启动）——指标采集上报内部支撑组件，无对外 HTTP 接口，属于平台监控框架范畴。
+- `common/storage/redis` 包（src/common/storage/redis/redis.go）——已封装 Client/Object 接口但全仓无 importer、main 未初始化，属未接线代码；缓存管理实际走 HTTP 到 BrowserGW（详见 [feature-cache-manage.md](feature-cache-manage.md)）。
+- `common/storage/oss` minio 封装（src/common/storage/oss/minio.go）——同样无调用方，文件实际落 DB（详见 [feature-file-manage.md](feature-file-manage.md)）。
 
 ## 使用说明
 
