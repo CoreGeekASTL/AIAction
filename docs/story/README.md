@@ -1,7 +1,8 @@
 # 功能软件要素文档
 
-> 由 interface-feature-analyzer 生成/更新，面向人与 AI 共同消费。
-> 代码仓：GIDS（GlobalInstanceDeliverService，云浏览器全局实例交付服务，Go + Beego v2）　分析基准：main @ 58597c8　更新时间：2026-07-26
+> 由 spec-feature-analyze 生成/更新，面向人与 AI 共同消费。
+> 代码仓：GIDS（GlobalInstanceDeliverService，云浏览器全局实例交付服务，Go + Beego v2）　分析基准：main @ 9757856　更新时间：2026-07-28
+> 分析范围：全部接口类型（IDL 契约 / 框架路由 / 消息订阅定时）
 
 服务形态：双 HTTP 监听——外部 HTTPS（默认 40051，src/routers/beego_router.go `RegisterExternalRouter`）与内部 HTTP（默认 9090，同文件 `RegisterInternalRouter`）；路由由各 Controller 的 `RouteInfo().RouteMapping` 集中声明。无 IDL 契约文件（proto/thrift/OpenAPI 均未命中），接口以框架路由为准。
 

@@ -11,7 +11,12 @@
 测试目录默认纳入，命中行标 [test] 便于人工区分。
 
 用法：
-  python3 scan_interfaces.py <repo_path> [-o scan_result.md] [--lang go|java|cpp|python] [--format json]
+  python3 scan_interfaces.py <repo_path> [-o scan_result.md] [--type idl|route|async] [--lang go|java|cpp|python] [--format json]
+
+--type 限定接口类型（不指定则全类型扫描）：
+  idl   = IDL/契约类（proto/thrift/OpenAPI/GraphQL）
+  route = 框架路由类（HTTP 路由 / RPC service 注册）
+  async = 消息/事件/定时入口
 """
 
 import argparse
@@ -81,6 +86,13 @@ CATEGORY_TITLE = {
     "async_entry": "消息/事件/定时入口",
 }
 
+# --type 取值 → 内部类别
+TYPE_CATEGORY = {
+    "idl": "idl_contract",
+    "route": "framework_route",
+    "async": "async_entry",
+}
+
 LANG_EXT = {
     "go": (".go",),
     "java": (".java",),
@@ -113,10 +125,11 @@ def is_test_path(rel):
     return bool(TEST_SEG.search(rel.replace(os.sep, "/")))
 
 
-def scan(repo, lang_filter=None):
+def scan(repo, lang_filter=None, type_filter=None):
     """返回 {类别: [(子类型, 相对路径, 行号, 行内容, is_test)]}"""
     hits = defaultdict(list)
     pattern_count = defaultdict(int)
+    only_category = TYPE_CATEGORY.get(type_filter) if type_filter else None
     for root, dirs, files in os.walk(repo):
         dirs[:] = [d for d in dirs if d not in EXCLUDE_DIRS and not d.startswith(".")]
         for fname in files:
@@ -139,6 +152,8 @@ def scan(repo, lang_filter=None):
                 continue
             test_flag = is_test_path(rel)
             for category, plist in PATTERNS.items():
+                if only_category and category != only_category:
+                    continue
                 for subtype, plang, regex, _desc in plist:
                     key = (category, subtype)
                     if pattern_count[key] >= MAX_MATCHES_PER_PATTERN:
@@ -192,13 +207,15 @@ def main():
     ap.add_argument("repo", help="代码仓路径")
     ap.add_argument("-o", "--output", help="输出文件（默认 stdout）")
     ap.add_argument("--lang", choices=["go", "java", "cpp", "python"], help="限定语言")
+    ap.add_argument("--type", choices=["idl", "route", "async"], dest="itype",
+                    help="限定接口类型：idl=IDL/契约，route=框架路由(HTTP/RPC)，async=消息/事件/定时；不指定则全类型")
     ap.add_argument("--format", choices=["md", "json"], default="md")
     args = ap.parse_args()
 
     if not os.path.isdir(args.repo):
         sys.exit(f"错误：{args.repo} 不是目录")
 
-    hits = scan(args.repo, args.lang)
+    hits = scan(args.repo, args.lang, args.itype)
     if args.format == "json":
         data = {
             cat: [

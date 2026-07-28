@@ -37,7 +37,7 @@ flowchart LR
 | 术语 | 人话解释 | 出处 |
 | --- | --- | --- |
 | BrowserGW | 浏览器网关，真正干活的远端实例，用户缓存存在它那边 | src/service/cache_service.go |
-| userdata | 用户数据，按设备双标识定位、存于对象存储的页面缓存 | src/service/cache_service.go |
+| userdata | 用户数据，按设备双标识定位、存于浏览器实例侧的页面缓存 | src/service/cache_service.go |
 | IMEI/IMSI | 设备号与卡号双标识，两个一起才能锁定一个用户 | src/models/req/request_entity.go |
 | 就绪实例 | 插件装完、容量有余、健康在线的实例才会被通知 | src/service/browser_service.go |
 | 实例清单来源 | 来自注册中心服务发现的内存快照，不查数据库 | src/common/cse/cse.go |
@@ -74,7 +74,7 @@ graph LR
 
 | 接口 | 路径/入口（含注册处） | 请求结构 | 响应结构 | 状态 |
 | --- | --- | --- | --- | --- |
-| DeleteCache | POST `/app-api/devicetcp/cache/deleteCache`；入口 src/controllers/cache_controller.go；注册 src/routers/beego_router.go（外部+内部） | DeleteCacheRequest（src/models/req/request_entity.go）：`{imei, imsi}`，均必填 | DataResponse（src/models/resp/response_entity.go）：`{code, message, data:true}`；失败 `code=-1/-2`（src/common/constants/retcode/retcode.go） | 在用 |
+| DeleteCache | POST `/app-api/devicetcp/cache/deleteCache`；入口 src/controllers/cache_controller.go；注册 src/routers/beego_router.go（外部+内部） | DeleteCacheRequest（src/models/req/request_entity.go）：`{imei, imsi}`，均必填 | DataResponse（src/models/resp/response_entity.go）：`{code, msg, data:true}`；失败 `code=-1/-2`（src/common/constants/retcode/retcode.go） | 在用 |
 | （出向）BrowserGW 删除用户数据 | DELETE `http://{BrowserInnerEndpoint}/browsergw/browser/userdata/delete`（src/service/cache_service.go） | JSON `{imei, imsi}`；超时 5s（src/service/cache_service.go） | 仅接受 HTTP 200（src/service/cache_service.go） | 在用 |
 
 ## 4. 关键数据结构
@@ -82,7 +82,7 @@ graph LR
 | 结构 | 定义位置 | 关键字段（含义+约束） |
 | --- | --- | --- |
 | DeleteCacheRequest | src/models/req/request_entity.go | `IMEI`（json `imei`，必填，`Validate` 非空校验）；`IMSI`（json `imsi`，同约束） |
-| BaseResponse | src/models/resp/base.go | `Code`（200/-1/-2，src/common/constants/retcode/retcode.go）；`Message` |
+| BaseResponse | src/models/resp/base.go | `Code`（200/-1/-2，src/common/constants/retcode/retcode.go）；`Message`（json `msg`） |
 | DataResponse | src/models/resp/response_entity.go | 内嵌 BaseResponse；`Data` 本接口固定 `true`（src/controllers/cache_controller.go） |
 | ServiceInstance | src/models/browsergateway/service_instance.go | `BrowserInnerEndpoint`（下游调用目标）；`Cap>0`/`PluginStatus==Complete`/`IsHealthy` 为就绪过滤条件（src/service/browser_service.go） |
 
@@ -134,3 +134,4 @@ sequenceDiagram
 - 路由改动只动 RouteInfo()，两侧监听同步生效（src/controllers/cache_controller.go；src/routers/beego_router.go）
 - 仅内部开放须移出外部路由注册（src/routers/beego_router.go）
 - 下游调用沿用 5s 超时与 200 判定约定（src/service/cache_service.go）
+- 响应 JSON 字段名为 code/msg/data，非 message（src/models/resp/base.go）
