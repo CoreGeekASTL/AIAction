@@ -130,8 +130,8 @@ graph LR
 
 | 接口 | 路径/入口（含注册处） | 请求结构 | 响应结构 | 状态 |
 | --- | --- | --- | --- | --- |
-| GridLoginAuth（外部） | POST /app-api/devicetcp/app/login/v1/gridLoginAuth；注册 src/routers/beego_router.go，入口 src/controllers/exlogin_controller.go | req.LoginAuthRequest（src/models/req/request_entity.go） | resp.DeviceLoginAuthResponse（src/models/resp/response_entity.go），6 个地址字段被清空（src/controllers/exlogin_controller.go） | 灰度中 |
-| GridLoginAuthOpenBrowser（外部） | POST /app-api/devicetcp/app/login/v1/gridLoginAuthOpenBrowser；注册 src/routers/beego_router.go，入口 src/controllers/exlogin_controller.go | req.LoginAuthRequest | resp.DeviceLoginAuthResponse，同样清空地址字段（src/controllers/exlogin_controller.go） | 在用（含异步预开） |
+| GridLoginAuth（外部） | POST /app-api/devicetcp/app/login/v1/gridLoginAuth；注册 src/routers/beego_router.go，入口 src/controllers/exlogin_controller.go | req.LoginAuthRequest（src/models/req/request_entity.go） | resp.DeviceLoginAuthResponse（src/models/resp/response_entity.go），6 个地址字段被清空（src/controllers/exlogin_controller.go） | 灰度中；27.0 起注入终端鉴权（见 feature-terminal-auth.md） |
+| GridLoginAuthOpenBrowser（外部） | POST /app-api/devicetcp/app/login/v1/gridLoginAuthOpenBrowser；注册 src/routers/beego_router.go，入口 src/controllers/exlogin_controller.go | req.LoginAuthRequest | resp.DeviceLoginAuthResponse，同样清空地址字段（src/controllers/exlogin_controller.go） | 在用（含异步预开）；27.0 起注入终端鉴权（见 feature-terminal-auth.md） |
 | DeviceLoginAuth（外部） | POST /app-api/devicetcp/app/login/v1/deviceLoginAuth；注册 src/routers/beego_router.go，入口 src/controllers/exlogin_controller.go | req.LoginAuthRequest | resp.DeviceLoginAuthResponse，保留接入地址仅清 NodeIntranetWayURL（src/controllers/exlogin_controller.go） | 在用（AppType=="2" 走 muen） |
 | GridLoginAuth（内部） | 同路径；注册 src/routers/beego_router.go，入口 src/controllers/login_controller.go | req.LoginAuthRequest | resp.DeviceLoginAuthResponse，实现与外部逐行相同 | 在用 |
 | GridLoginAuthOpenBrowser（内部） | 同路径；注册 src/routers/beego_router.go，入口 src/controllers/login_controller.go | req.LoginAuthRequest | resp.DeviceLoginAuthResponse，同外部实现 | 在用 |

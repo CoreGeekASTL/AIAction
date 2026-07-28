@@ -17,12 +17,14 @@
 | 缓存管理 | 1（外/内双监听同注册） | controllers(cache)、service(cache) | [feature-cache-manage.md](feature-cache-manage.md) |
 | 配置管理 | 4（全部内部） | controllers(management/config_center)、service(config_center/alarm)、dao(browser_config/config_center) | [feature-config-manage.md](feature-config-manage.md) |
 | 证书订阅 | 1 个订阅入口（3 个证书场景，消息订阅类，非 HTTP） | common/cert、common/https、CertSDK(stub) | [feature-cert-subscribe.md](feature-cert-subscribe.md) |
+| 终端鉴权 | 3 个新增（设计中）+ 4 个既有链路注入点 | controllers(auth)、service(auth/auth_manage)、dao(white_list) | [feature-terminal-auth.md](feature-terminal-auth.md) |
 
 ## 接口统计
 
 - 去重后 HTTP 业务路径 28 个：外部监听暴露 9 个（登录 3、文件 2、事件 2、缓存 1、测试桩 1），内部监听注册 28 个（含与外部同名重复的 8 个）。
 - 非 HTTP 入口：证书订阅 3 个场景（src/common/cert/cert.go）、流量统计定时清理 1 个（src/scheduler/task_scheduler.go）。
 - 语言级内部接口（仓内模块间契约）仅用于分析理解，不写入功能文档。
+- 设计中：终端鉴权新增 3 个（/auth/v1/*，见 feature-terminal-auth.md），落地后计入上表。
 - 已下线：0 个（探测到的接口均有路由注册，无注释残留路由）。
 
 ## 框架引用

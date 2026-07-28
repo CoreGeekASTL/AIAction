@@ -94,8 +94,8 @@ graph LR
 
 | 接口 | 路径/入口 | 请求结构 | 响应结构 | 状态 |
 | --- | --- | --- | --- | --- |
-| SendClientEvent | POST /app-api/center/public/client/sendClientEvent；路由 src/controllers/event_controller.go；注册 src/routers/beego_router.go；入口 src/controllers/event_controller.go | req.ClientEventRequest（src/models/req/event_request.go） | resp.DataResponse{Code, Message:"record success", Data:true}；失败 400 + retcode.ClientFailed（src/controllers/event_controller.go） | 在用 |
-| SendAppUseTimesEvent | POST /app-api/center/public/client/sendAppUseTimesEvent；路由 src/controllers/event_controller.go；注册 src/routers/beego_router.go；入口 src/controllers/event_controller.go | req.AppUseTimesEvent（src/models/req/event_request.go） | 同上（src/controllers/event_controller.go） | 在用 |
+| SendClientEvent | POST /app-api/center/public/client/sendClientEvent；路由 src/controllers/event_controller.go；注册 src/routers/beego_router.go；入口 src/controllers/event_controller.go | req.ClientEventRequest（src/models/req/event_request.go） | resp.DataResponse{Code, Message:"record success", Data:true}；失败 400 + retcode.ClientFailed（src/controllers/event_controller.go） | 在用；27.0 起注入终端鉴权（见 feature-terminal-auth.md） |
+| SendAppUseTimesEvent | POST /app-api/center/public/client/sendAppUseTimesEvent；路由 src/controllers/event_controller.go；注册 src/routers/beego_router.go；入口 src/controllers/event_controller.go | req.AppUseTimesEvent（src/models/req/event_request.go） | 同上（src/controllers/event_controller.go） | 在用；27.0 起注入终端鉴权（见 feature-terminal-auth.md） |
 
 ## 4. 关键数据结构
 
