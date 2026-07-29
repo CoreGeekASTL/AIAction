@@ -1,6 +1,6 @@
 # 定时调度使用指导（定时/调度）
 
-> 版本：Go 标准库 time.Timer/Ticker（无 cron 库）｜ 调用点：6 ｜ 涉及文件：5 ｜ 基线：main @ 5e78a48
+> 版本：Go 标准库 time.Timer/Ticker（无 cron 库）｜ 调用点：6 ｜ 涉及文件：5 ｜ 基线：origin/main @ ae0a8a6（2026-07-29 复核）
 
 ## 用途定位
 

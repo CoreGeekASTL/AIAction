@@ -1,6 +1,6 @@
 # Beego v2 Web 使用指导（RPC/通信-服务端）
 
-> 版本：github.com/beego/beego/v2 v2.1.0 ｜ 调用点：~40（全部经封装层，无裸 `beego.Run()`）｜ 涉及文件：14 controllers + routers + common/https ｜ 基线：main @ 5e78a48
+> 版本：github.com/beego/beego/v2 v2.1.0 ｜ 调用点：~40（全部经封装层，无裸 `beego.Run()`）｜ 涉及文件：14 controllers + routers + common/https ｜ 基线：origin/main @ ae0a8a6（2026-07-29 复核）
 
 ## 用途定位
 

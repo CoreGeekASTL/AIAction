@@ -1,6 +1,6 @@
 # 配置体系使用指导（配置管理）
 
-> 版本：Beego AppConfig(ini) + 自研 flagutil + 自研 DB 配置中心 ｜ 调用点：~25 ｜ 涉及文件：6 ｜ 基线：main @ 5e78a48
+> 版本：Beego AppConfig(ini) + 自研 flagutil + 自研 DB 配置中心 ｜ 调用点：~25 ｜ 涉及文件：6 ｜ 基线：origin/main @ ae0a8a6（2026-07-29 复核）
 
 ## 用途定位
 

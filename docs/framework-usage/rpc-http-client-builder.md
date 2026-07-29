@@ -1,6 +1,6 @@
 # 自研 HTTP 客户端 Builder 使用指导（RPC/通信-客户端）
 
-> 版本：自研封装（基于 net/http）+ GSF RestInvoker（内部 SDK stub）｜ 调用点：~10（builder 5 处 / GSF invoker 2 处 / 裸 http.Client 1 处）｜ 涉及文件：6 ｜ 基线：main @ 5e78a48
+> 版本：自研封装（基于 net/http）+ GSF RestInvoker（内部 SDK stub）｜ 调用点：~10（builder 5 处 / GSF invoker 2 处 / 裸 http.Client 1 处）｜ 涉及文件：6 ｜ 基线：origin/main @ ae0a8a6（2026-07-29 复核）
 
 ## 用途定位
 

@@ -1,6 +1,6 @@
 # 文件管理
 
-> 功能域：文件管理　接口数：8　所属 server：外部(HTTPS) 2 + 内部(HTTP) 6
+> 功能域：文件管理　接口数：6（2 双实现 + 4 仅内部）　所属 server：外部(HTTPS) 2 + 内部(HTTP) 6
 > 子文档 of [README.md](README.md)
 
 ## 1. 定位
@@ -43,3 +43,4 @@
 
 - **文件上传无大小校验**：controllers/exfile_controller.go:47（`io.ReadAll(c.Body())` 直接读全 body，无大小限制，可能内存耗尽）
 - **文件下载 path 参数未校验**：controllers/file_controller.go:25/30（`:fileName`/`:bucket` 未做路径穿越校验，可能读到任意路径文件）
+- **Download Content-Length 头错误**：controllers/file_controller.go:91（`string(rune(len(content)))` 将长度强转为单字符，Content-Length 非法，可能导致客户端下载截断/挂起）

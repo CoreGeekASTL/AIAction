@@ -1,6 +1,6 @@
 # CSP 话统监控与告警使用指导（监控/可观测）
 
-> 版本：CSPGoMonitorSDK（stub）+ AlarmSDK_GO（stub）｜ 调用点：~10 ｜ 涉及文件：2 ｜ 基线：main @ 5e78a48
+> 版本：CSPGoMonitorSDK（stub）+ AlarmSDK_GO（stub）｜ 调用点：~10 ｜ 涉及文件：2 ｜ 基线：origin/main @ ae0a8a6（2026-07-29 复核）
 
 ## 用途定位
 

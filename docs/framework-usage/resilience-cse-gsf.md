@@ -1,6 +1,6 @@
 # GSF/CSE 服务发现与 greatwall 过载控制使用指导（容错/服务治理）
 
-> 版本：Go-chassis-extend（内部 GSF SDK，本地 stub `src/stubs/Go-chassis-extend`）+ greatwall-sdk-go v1.9.6（stub）｜ 调用点：~15 ｜ 涉及文件：4 ｜ 基线：main @ 5e78a48
+> 版本：Go-chassis-extend（内部 GSF SDK，本地 stub `src/stubs/Go-chassis-extend`）+ greatwall-sdk-go v1.9.6（stub）｜ 调用点：~15 ｜ 涉及文件：4 ｜ 基线：origin/main @ ae0a8a6（2026-07-29 复核）
 
 ## 用途定位
 

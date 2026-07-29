@@ -1,6 +1,14 @@
 # 基础框架使用指导
 
-> 生成时间：2026-07-27 ｜ 代码基线：main @ 5e78a48 ｜ 分析深度：深（资产级）
+| 元信息 | 值 |
+|--------|-----|
+| 代码仓 | AIAction（GIDS / GlobalInstanceDeliverService） |
+| 分析基准 | origin/main 分支 @ ae0a8a6（2026-07-29 复核，src/ 与 2026-07-27 初次生成时无差异） |
+| 更新时间 | 2026-07-29 |
+| Skill | spec-framework-usage-analyze |
+| 主要语言 | Go 1.25（+ Python testsuit E2E） |
+| 分析深度 | 深（资产级） |
+
 > 用途：AI 编码与新人上手时，按部件查阅对应框架的使用指导；每框架一篇 md。
 
 项目：GIDS（GlobalInstanceDeliverService），Go 1.25 + Beego v2.1.0，go module `GIDS`，源码在 `src/`。
@@ -12,7 +20,7 @@
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | RPC/通信（服务端） | Beego v2 Web | v2.1.0 | ~40 | 14 controllers + routers | 有（`common/https` server、`BaseController`） | [rpc-beego-web.md](rpc-beego-web.md) |
 | 2 | RPC/通信（客户端） | 自研 HTTP Builder + net/http + GSF RestInvoker | — | ~10 | 6 | 即封装层（`common/https` builder） | [rpc-http-client-builder.md](rpc-http-client-builder.md) |
-| 3 | 存储/ORM | Beego ORM + GaussDB(openGauss-pq) / SQLite(modernc) | beego v2.1.0 / v1.0.7 / v1.54.0 | 全量 DAO | models/db 7 实体 + dao 9 文件 | 有（`dao.BaseDao`/`BaseInterface`） | [storage-beego-orm.md](storage-beego-orm.md) |
+| 3 | 存储/ORM | Beego ORM + GaussDB(openGauss-pq) / SQLite(modernc) | beego v2.1.0 / v1.0.7 / v1.54.0 | 全量 DAO | models/db 7 文件 9 实体 + dao 10 文件 | 有（`dao.BaseDao`/`BaseInterface`） | [storage-beego-orm.md](storage-beego-orm.md) |
 | 4 | 存储/缓存 | go-redis v9 封装 | v9.0.5 | 0 业务调用点 | 1（仅封装层） | 有（`common/storage/redis`） | [storage-redis.md](storage-redis.md) |
 | 5 | 存储/对象 | minio-go v7 封装 | v7.0.69 | 0 业务调用点 | 1（仅封装层） | 有（`common/storage/oss`） | [storage-minio.md](storage-minio.md) |
 | 6 | 容错/服务治理 | GSF/CSE 服务发现 + greatwall 过载控制 | 内部 SDK（stub） | ~15 | 4 | 有（`common/cse`） | [resilience-cse-gsf.md](resilience-cse-gsf.md) |
@@ -46,4 +54,4 @@
 
 - AI 编码时：先按需求涉及的部件查阅对应 md 文末「AI 编码指南」，再动手写代码。
 - 新增框架或框架用法变化时：更新对应 md，并同步本索引的全景清单。
-- 项目级代码风格基线另见 `AGENTS.md`「Go代码质量基线」与 `.claudecode/skills/code-quality-check/`。
+- 项目级代码风格基线另见 `AGENTS.md`「Go代码质量基线」与「已踩坑记录」。

@@ -1,6 +1,6 @@
 # Beego ORM + GaussDB/SQLite 使用指导（存储/ORM）
 
-> 版本：beego/v2 v2.1.0（client/orm）+ openGauss-connector-go-pq v1.0.7 + modernc.org/sqlite v1.54.0 ｜ 调用点：全部 DAO 经封装层 ｜ 涉及文件：models/db(7 实体) + dao(9) + db/driver ｜ 基线：main @ 5e78a48
+> 版本：beego/v2 v2.1.0（client/orm）+ openGauss-connector-go-pq v1.0.7 + modernc.org/sqlite v1.54.0 ｜ 调用点：全部 DAO 经封装层 ｜ 涉及文件：models/db(7 文件/9 实体) + dao(10) + db/driver ｜ 基线：origin/main @ ae0a8a6（2026-07-29 复核）
 
 ## 用途定位
 

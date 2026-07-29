@@ -1,6 +1,6 @@
 # 测试框架使用指导（测试框架）
 
-> 版本：testify v1.8.4 + goconvey v1.8.1 + gomockit v1.1.0（stub）+ Python testsuit ｜ 调用点：17 个 Go 测试文件 + 5 个 E2E 脚本 ｜ 涉及文件：src 各模块 `_test.go` + `testsuit/` ｜ 基线：main @ 5e78a48
+> 版本：testify v1.8.4 + goconvey v1.8.1 + gomockit v1.1.0（stub）+ Python testsuit ｜ 调用点：17 个 Go 测试文件 + 5 个 E2E 脚本 ｜ 涉及文件：src 各模块 `_test.go` + `testsuit/` ｜ 基线：origin/main @ ae0a8a6（2026-07-29 复核）
 
 ## 用途定位
 

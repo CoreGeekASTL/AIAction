@@ -1,6 +1,6 @@
 # 日志体系使用指导（日志）
 
-> 版本：go-chassis lager（stub）+ fusionstage auditlog v1.9.7（stub）+ 自研 event 存储 ｜ 调用点：全模块 ｜ 涉及文件：common/logger(2) + common/event(2) + 全业务文件 ｜ 基线：main @ 5e78a48
+> 版本：go-chassis lager（stub）+ fusionstage auditlog v1.9.7（stub）+ 自研 event 存储 ｜ 调用点：全模块 ｜ 涉及文件：common/logger(2) + common/event(2) + 全业务文件 ｜ 基线：origin/main @ ae0a8a6（2026-07-29 复核）
 
 ## 用途定位
 

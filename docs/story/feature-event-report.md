@@ -83,8 +83,8 @@ graph LR
 
 | 接口 | 路径/入口（含注册处） | 请求结构 | 响应结构 | 状态 |
 |---|---|---|---|---|
-| SendClientEvent（上报客户端异常事件） | POST /app-api/center/public/client/sendClientEvent；入口 src/controllers/event_controller.go；注册 src/routers/beego_router.go（外部与内部双注册） | ClientEventRequest（src/models/req/event_request.go）：{hsman, hstype, appType, imei, imsi, type}，Validate 恒通过无必填约束 | DataResponse（src/models/resp/response_entity.go）：{code, msg, data}，成功 code=200、msg="record success"、data=true；失败 code=-2 | 在用 |
-| SendAppUseTimesEvent（上报应用使用时长事件） | POST /app-api/center/public/client/sendAppUseTimesEvent；入口 src/controllers/event_controller.go；注册 src/routers/beego_router.go（外部与内部双注册） | AppUseTimesEvent（src/models/req/event_request.go）：{useTimes, hsman, hstype, exttype, appType, appId, scheight, scwidth, imei, imsi, playMode}，Validate 恒通过无必填约束 | DataResponse（src/models/resp/response_entity.go）：同上约定 | 在用 |
+| SendClientEvent（上报客户端异常事件） | POST /app-api/center/public/client/sendClientEvent；入口 src/controllers/event_controller.go；注册 src/routers/beego_router.go（外部与内部双注册） | ClientEventRequest（src/models/req/event_request.go）：{hsman, hstype, appType, imei, imsi, type}，Validate 恒通过无必填约束 | DataResponse（src/models/resp/response_entity.go）：{code, msg, data}，成功 code=200、msg="record success"、data=true；失败 code=-2 | 在用（27.0 起注入终端鉴权，鉴权失败 code=401，见 [feature-terminal-auth.md](feature-terminal-auth.md)） |
+| SendAppUseTimesEvent（上报应用使用时长事件） | POST /app-api/center/public/client/sendAppUseTimesEvent；入口 src/controllers/event_controller.go；注册 src/routers/beego_router.go（外部与内部双注册） | AppUseTimesEvent（src/models/req/event_request.go）：{useTimes, hsman, hstype, exttype, appType, appId, scheight, scwidth, imei, imsi, playMode}，Validate 恒通过无必填约束 | DataResponse（src/models/resp/response_entity.go）：同上约定 | 在用（27.0 起注入终端鉴权，鉴权失败 code=401） |
 
 本功能无出向调用：事件仅写本地文件，不调用任何外部服务（src/common/event/local_storage.go）。
 

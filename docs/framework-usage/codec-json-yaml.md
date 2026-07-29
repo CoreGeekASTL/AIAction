@@ -1,6 +1,6 @@
 # 序列化使用指导（序列化）
 
-> 版本：encoding/json（标准库）+ gopkg.in/yaml.v2 v2.4.0 + encoding/csv ｜ 调用点：json 43 / yaml 1 / csv 若干 ｜ 涉及文件：18 ｜ 基线：main @ 5e78a48
+> 版本：encoding/json（标准库）+ gopkg.in/yaml.v2 v2.4.0 + encoding/csv ｜ 调用点：json 43 / yaml 1 / csv 若干 ｜ 涉及文件：18 ｜ 基线：origin/main @ ae0a8a6（2026-07-29 复核）
 
 ## 用途定位
 

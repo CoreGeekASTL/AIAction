@@ -1,6 +1,6 @@
 # AIAction 结构文档
 
-> 生成时间：2026-07-28
+> 生成时间：2026-07-29
 > 分析模式：仓库级
 > 输入路径：/home/lele/project/work/csp-ysj/AIAction
 

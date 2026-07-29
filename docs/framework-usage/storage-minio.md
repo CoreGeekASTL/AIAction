@@ -1,6 +1,6 @@
 # MinIO（minio-go v7）封装使用指导（存储/对象）
 
-> 版本：github.com/minio/minio-go/v7 v7.0.69 ｜ 调用点：0 业务调用点（仅封装层 1 文件）｜ 涉及文件：1 ｜ 基线：main @ 5e78a48
+> 版本：github.com/minio/minio-go/v7 v7.0.69 ｜ 调用点：0 业务调用点（仅封装层 1 文件）｜ 涉及文件：1 ｜ 基线：origin/main @ ae0a8a6（2026-07-29 复核）
 
 ## 用途定位
 
