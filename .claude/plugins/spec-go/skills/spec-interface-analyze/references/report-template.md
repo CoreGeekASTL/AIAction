@@ -17,9 +17,17 @@
 ```markdown
 # 对外接口总览
 
-> 代码仓：<仓库名>　分析基准：<commit/分支>　更新时间：<YYYY-MM-DD>
-> 由 spec-interface-analyze 生成，面向人类阅读。
-> 范围：本仓对外提供的接口（HTTP 路由 / RPC service / 消息订阅 handler / IDL 契约），不含本仓调用别人的接口。
+| 元信息 | 值 |
+|--------|-----|
+| 代码仓 | <仓库名> |
+| 分析基准 | <分支名> 分支 (<YYYY-MM-DD>) |
+| 更新时间 | <YYYY-MM-DD> |
+| Skill | spec-interface-analyze |
+| 主要语言 | <语言> |
+| Web 框架 | <框架及版本> |
+| API 契约 | <契约文件类型与数量，无则写"无"> |
+
+> 面向人类阅读。范围：本仓对外提供的接口（HTTP 路由 / RPC service / 消息订阅 handler / IDL 契约），不含本仓调用别人的接口。
 
 ## 1. 接口全景
 
@@ -53,6 +61,8 @@ flowchart LR
 | 证书订阅 | 3（异步） | common/cert | [spec-interface-cert.md](spec-interface-cert.md) |
 
 > 未归类接口：无（若有探测到但无法归入任何功能域的接口，在此逐条列出并说明原因）
+
+自检：扫描 N 个接口，已记录 N 个，未归类 M 个（见上表），差集已清零（YYYY-MM-DD）
 
 ## 3. 全局风险与注意点
 

@@ -7,8 +7,15 @@
 ```markdown
 # 功能软件要素文档
 
+| 元信息 | 值 |
+|--------|-----|
+| 代码仓 | <仓库名> |
+| 分析基准 | <分支名> 分支 (<YYYY-MM-DD>) |
+| 更新时间 | <YYYY-MM-DD> |
+| Skill | spec-story-design |
+| 主要语言 | <语言> |
+
 > 由 spec-story-design 生成/更新，面向人与 AI 共同消费。
-> 代码仓：<仓库名>　分析基准：<commit/分支>　更新时间：<YYYY-MM-DD>
 
 ## 功能全景
 
