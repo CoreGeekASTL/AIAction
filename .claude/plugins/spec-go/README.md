@@ -1,103 +1,102 @@
 # Spec-go
 
-Spec-go 是一套面向存量代码仓的规格化分析 skill 体系，由一组可组合的 spec skill 和一段确保 agent 主动使用它们的 bootstrap 指令构成。
+面向存量代码仓的规格化分析 skill 体系。包含 8 个 spec skill 和一段 bootstrap 注入指令，让 coding agent 在做代码仓分析类任务前，先加载对应 skill、按统一格式产出文档资产到 `docs/` 下。
 
-## 快速开始
+## 组成
 
-给你的 coding agent 装上 Spec-go：[OpenCode](#opencode)、[Claude Code](#claude-code)。
+```
+spec-go/
+├── opencode.js              # OpenCode 插件入口（package.json 的 main）
+├── bootstrap.md             # 注入指令（由 scripts/generate-bootstrap.mjs 生成，勿手改）
+├── skills/                  # 8 个 spec skill（每个一个目录，内含 SKILL.md）
+├── hooks/                   # Claude Code SessionStart hook
+│   ├── hooks.json           # hook 注册（SessionStart → run-hook.cmd session-start）
+│   ├── run-hook.cmd         # 跨平台 wrapper（Windows 走 Git Bash，Unix 直接 exec）
+│   └── session-start        # 读 bootstrap.md，输出 additionalContext JSON
+├── scripts/
+│   └── generate-bootstrap.mjs  # 从 skills/*/SKILL.md frontmatter 重新生成 bootstrap.md
+├── plugin.json              # OpenCode 插件清单
+└── .claude-plugin/          # Claude Code 插件与 marketplace 清单
+    ├── plugin.json
+    └── marketplace.json
+```
 
 ## 工作原理
 
-从你打开一个存量代码仓那一刻起，Spec-go 就开始工作。一旦它发现你在做"梳理结构、盘点接口、盘点出站调用、归纳功能、梳理框架、审需求、写 story"这类分析任务，它不会上来就乱翻代码或凭印象下结论，而是先加载对应的 spec skill，按统一格式产出可消费的文档资产——mermaid 结构图、接口清单、feature 文档、框架使用指导、逻辑审核 HTML、story 设计——沉淀到 `docs/` 下，供人审、供 AI 后续编码消费。
+两个平台都只做两件事：**让 agent 发现 skills/ 下的 skill**、**会话启动时注入 bootstrap.md**（内容是一段"做分析任务前必须先加载对应 skill"的指令 + 8 个 skill 的索引）。
 
-每个 skill 都自动触发，你无需做任何特殊操作。你的 coding agent 只是"拥有 spec 能力"。
+- **OpenCode**：`opencode.js` 的 `config` hook 把 `skills/` 注册进 `config.skills.paths`；`experimental.chat.messages.transform` hook 把 bootstrap 注入第一条 user message（注入 user message 而非 system message，避免每轮重复消耗 token）。
+- **Claude Code**：`hooks/hooks.json` 在 SessionStart 执行 `session-start` 脚本，把 bootstrap 作为 `additionalContext` 输出；`skills/` 目录由 Claude Code 插件机制自动发现。
 
-## 安装
+bootstrap.md 是预生成文件，由 `scripts/generate-bootstrap.mjs` 从各 skill 的 frontmatter description 生成。改了任何 skill 后必须重跑该脚本，否则注入的索引是旧的。
 
-各 harness 安装方式不同。若同时使用多个，分别安装。
+## 安装到 OpenCode
 
-### OpenCode
-
-OpenCode 用自己的插件机制；即使你在别的 harness 装过，OpenCode 仍需单独安装一次。
-
-- 在 `~/.config/opencode/opencode.json` 的 `plugin` 数组加入本插件目录：
+在 `opencode.json`（全局 `~/.config/opencode/opencode.json` 或项目根 `./opencode.json`）的 `plugin` 数组中加入**本插件的包目录路径**：
 
 ```json
 {
-  "plugin": ["~/.config/opencode/plugins/spec-go"]
+  "plugin": ["/绝对路径/spec-go"]
 }
 ```
 
-- 重启 OpenCode。配置项须是**包目录**（不是 `.js` 文件路径）——OpenCode 会读 `package.json` 的 `main`（`opencode.js`）作为入口，`config` hook 注册 skills 目录，`messages.transform` hook 注入 bootstrap。
+注意：
 
-### Claude Code
+- 路径必须是**包目录**（含 `package.json` 的目录），不是 `opencode.js` 文件路径。OpenCode 读 `package.json` 的 `main` 字段定位入口。
+- 用全局配置时建议写绝对路径；项目级配置可用相对配置文件的路径。
+- 配置在启动时加载一次，**保存后需退出并重启 OpenCode**生效。
 
-- 注册本地 marketplace：
+## 安装到 Claude Code
 
-```
-/plugin marketplace add ~/.config/opencode/plugins/spec-go
-```
-
-- 从该 marketplace 安装插件：
+两步：注册本地 marketplace，再安装插件。
 
 ```
+/plugin marketplace add /绝对路径/spec-go
 /plugin install spec-go@spec-go
 ```
 
-插件安装后，Claude Code 读 `hooks/hooks.json` 在 SessionStart 跑 `session-start` 脚本注入 bootstrap，并发现 `skills/` 目录下的 8 个 skill。
+注意：
 
-## 基本工作流
+- SessionStart hook 依赖 bash。Windows 上需要安装 Git Bash（`hooks/run-hook.cmd` 会自动查找 `C:\Program Files\Git\bin\bash.exe` 或 PATH 中的 bash）。
+- 安装后重启 Claude Code 生效。
 
-1. **spec-structure-analyze** - 代码仓结构摸底：第一层目录与包间依赖，产出 mermaid 依赖图 + 模块说明表。
-2. **spec-interface-analyze** - 对外接口盘点：HTTP 路由 / RPC service / 消息订阅 handler / IDL 契约，主文档 README + 功能域子文档，归档 `docs/interface/`。
-3. **spec-external-call-analyze** - 出站调用盘点：HTTP 客户端 / RPC client / MQ 生产端 / 平台 SDK，按下游服务归类，README 索引 + external-call 子文档，归档 `docs/external-call/`。
-4. **spec-feature-analyze** - 接口归纳为功能域：同一业务的多个接口归为一个 feature，产出与 `docs/story/` 同构的 feature 文档。
-5. **spec-framework-usage-analyze** - 框架使用模式：识别基础框架及调用点分布，每框架一篇使用指导，归档 `docs/framework-usage/`。
-6. **spec-logic-audit** - 需求逻辑审核：把 Spec 翻译成多彩建模图，逻辑断裂点自然暴露，ask-human 补齐，产出 HTML 供编码人员审核。
-7. **spec-story-design** - 需求到 story：接收 SR/特性设计，结合存量架构资产，产出与 `docs/story/` 同构的新功能 story 设计文档。
-8. **spec-asset-refresh** - MR 后资产刷新：基于 MR diff 识别五类资产（接口/框架/外部调用/结构/feature）变化，增量刷新，人工审核定稿。
+## 验证安装
 
-**agent 在任何分析任务前都会检查是否有相关 skill。** 这是必须遵循的流程，不是建议。
+重启后确认两点：
 
-## 内含什么
+1. skill 列表中出现 8 个 `spec-` 开头的 skill（OpenCode 中可查看可用 skill；Claude Code 中 `/plugin` 查看已装插件）
+2. 会话启动时 bootstrap 已注入：直接问 agent "你有哪些 spec skill"，应能列出下表 8 个
 
-### 技能库
+## 内含 skill
 
-**结构**
-- **spec-structure-analyze** - 代码仓结构文档（mermaid 依赖图 + 模块说明表）
+| 分类 | Skill | 作用 | 产出 |
+|------|-------|------|------|
+| 结构 | spec-structure-analyze | 代码仓结构摸底 | `docs/structure/`：mermaid 依赖图 + 模块说明表 |
+| 接口（入站） | spec-interface-analyze | 对外接口盘点（HTTP 路由/RPC/消息订阅/IDL） | `docs/interface/`：README + 功能域子文档 |
+| 接口（出站） | spec-external-call-analyze | 出站调用盘点（HTTP/RPC client、MQ 生产端、SDK） | `docs/external-call/`：README + 按下游服务归类子文档 |
+| 功能 | spec-feature-analyze | 对外接口按业务功能归纳 | `docs/story/`：feature-*.md（L1 多彩建模 + L2 结构地图 + L3 AI 编码指南） |
+| 框架 | spec-framework-usage-analyze | 基础框架使用模式分析 | `docs/framework-usage/`：每框架一篇使用指导 |
+| 需求审核 | spec-logic-audit | 多彩建模 + 设计要素（时序图/验收用例/接口）完备性校验 | 建模 HTML；可选输出规范功能实现设计 md |
+| 设计 | spec-story-design | 需求文档 → story 设计文档 | `docs/story/` + `docs/develop-task/`（抛弃式编码辅助文档） |
+| 资产维护 | spec-asset-refresh | 基于 MR diff 识别五类资产变化，增量刷新 | 刷新上述全部 `docs/` 资产，人工审核定稿 |
 
-**接口**
-- **spec-interface-analyze** - 对外接口盘点（HTTP/RPC/消息订阅/IDL，主文档+子文档）
-- **spec-external-call-analyze** - 出站调用盘点（按下游服务归类，README 索引+子文档）
-- **spec-feature-analyze** - 接口按业务功能归纳为 feature 文档
+推荐全链路顺序：structure → interface → external-call → feature → framework-usage →（有需求时）logic-audit → story-design →（MR 后）asset-refresh。每步也可单独触发。
 
-**框架**
-- **spec-framework-usage-analyze** - 基础框架使用模式分析，每框架一篇使用指导
+## 修改 skill 后如何更新
 
-**需求**
-- **spec-logic-audit** - 多彩建模 + 业务逻辑完备性审核
-- **spec-story-design** - 按存量模板产出新功能 story 设计
-
-**资产维护**
-- **spec-asset-refresh** - 基于 MR 识别五类资产变化，增量刷新 + 人工审核
-
-## 理念
-
-- **设计先行于编码** - 先沉淀 spec/设计文档，再动代码
-- **多彩建模** - 把文档翻译成事件-角色-实体的因果图，让逻辑断点无处遁形
-- **证据先行** - 基于代码仓实际接口/调用点产出，不臆造
-- **统一产出** - 所有 skill 按既定格式归档到 `docs/`，人与 AI 共同消费
-
-## 更新
-
-Spec-go 的 skill 内容在 `skills/*/SKILL.md`。改了任一 skill 后，重新生成 bootstrap：
+skill 内容在 `skills/<名称>/SKILL.md`。任一 skill 的 frontmatter description 变更后，重新生成 bootstrap 并重启 agent：
 
 ```bash
-cd ~/.config/opencode/plugins/spec-go
-bun scripts/generate-bootstrap.mjs
+cd /路径/spec-go
+bun scripts/generate-bootstrap.mjs    # 或 node scripts/generate-bootstrap.mjs
 ```
 
-然后重启 coding agent 使新 bootstrap 生效。
+只改 SKILL.md 正文（frontmatter 没变）时 bootstrap 无需重新生成，但 Claude Code 需重装或重启才能读到新 skill 内容。
+
+## 卸载
+
+- OpenCode：从 `opencode.json` 的 `plugin` 数组移除条目，重启
+- Claude Code：`/plugin uninstall spec-go@spec-go`
 
 ## 许可证
 
