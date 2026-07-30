@@ -22,6 +22,7 @@ type LoginController struct {
 	userService    service.UserService
 	browserService service.BrowserService
 	eventService   service.EventService
+	authService    service.AuthService
 }
 
 func (c *LoginController) RouteInfo() RouteInfo {
@@ -41,6 +42,7 @@ func (c *LoginController) Prepare() {
 	c.userService = service.NewUserService()
 	c.browserService = service.NewBrowserService()
 	c.eventService = service.NewEventService()
+	c.authService = service.NewAuthService()
 }
 
 func (c *LoginController) GetUserBind() {
@@ -149,6 +151,12 @@ func (c *LoginController) loginAuth(preOpenBrowser bool) (*req.LoginAuthRequest,
 	if err != nil {
 		logger.Infof("[loginAuth] unmarshal failed, err: [%v], request: [%v]", err, request)
 		c.Failed(resp.BaseResponse{Code: retcode.ClientFailed, Message: err.Error()})
+		return nil, nil
+	}
+
+	if pass, _ := c.authService.Check(request.IMEI, request.IMSI); !pass {
+		logger.Warnf("[loginAuth] terminal auth rejected")
+		c.Failed(resp.BaseResponse{Code: retcode.ClientFailed, Message: "auth rejected"})
 		return nil, nil
 	}
 

@@ -21,6 +21,7 @@ type ExLoginController struct {
 	userService    service.UserService
 	browserService service.BrowserService
 	eventService   service.EventService
+	authService    service.AuthService
 }
 
 func (c *ExLoginController) RouteInfo() RouteInfo {
@@ -37,6 +38,7 @@ func (c *ExLoginController) Prepare() {
 	c.userService = service.NewUserService()
 	c.browserService = service.NewBrowserService()
 	c.eventService = service.NewEventService()
+	c.authService = service.NewAuthService()
 }
 
 func (c *ExLoginController) GridLoginAuth() {
@@ -97,6 +99,12 @@ func (c *ExLoginController) loginAuth(preOpenBrowser bool) (*req.LoginAuthReques
 	if err != nil {
 		logger.Infof("[loginAuth] unmarshal failed, err: [%v], request: [%v]", err, request)
 		c.Failed(resp.BaseResponse{Code: retcode.ClientFailed, Message: err.Error()})
+		return nil, nil
+	}
+
+	if pass, _ := c.authService.Check(request.IMEI, request.IMSI); !pass {
+		logger.Warnf("[loginAuth] terminal auth rejected")
+		c.Failed(resp.BaseResponse{Code: retcode.ClientFailed, Message: "auth rejected"})
 		return nil, nil
 	}
 

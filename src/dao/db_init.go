@@ -124,6 +124,12 @@ CREATE TABLE IF NOT EXISTS t_config_center (
     updated_at varchar(255) DEFAULT '' -- 更新时间
 );
 CREATE UNIQUE INDEX IF NOT EXISTS t_configs_key ON t_config_center(config_key);
+CREATE TABLE IF NOT EXISTS t_white_list (
+    imei char(15) NOT NULL PRIMARY KEY,  -- 设备标识，15位纯数字
+    imsi char(15) NOT NULL,  -- 用户身份标识，15位纯数字，Beego不支持复合pk，唯一性由联合索引兜底
+    created_at varchar(255) DEFAULT ''
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_white_list_imei_imsi ON t_white_list(imei, imsi);
 ALTER TABLE t_user_bind ADD COLUMN IF NOT EXISTS control_tls_endpoint VARCHAR(255);
 ALTER TABLE t_user_bind ADD COLUMN IF NOT EXISTS media_tls_endpoint VARCHAR(255);
 

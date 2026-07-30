@@ -120,6 +120,12 @@ CREATE TABLE IF NOT EXISTS t_config_center (
     updated_at TEXT DEFAULT ''
 );
 CREATE UNIQUE INDEX IF NOT EXISTS t_configs_key ON t_config_center(config_key);
+CREATE TABLE IF NOT EXISTS t_white_list (
+    imei TEXT NOT NULL PRIMARY KEY,
+    imsi TEXT NOT NULL,
+    created_at TEXT DEFAULT ''
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_white_list_imei_imsi ON t_white_list(imei, imsi);
 `
 
 var sqliteDriverOnce sync.Once
