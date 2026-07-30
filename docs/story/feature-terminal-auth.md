@@ -84,22 +84,22 @@ flowchart LR
 
 ```mermaid
 graph LR
-  Router[routers/beego_router.go 复用] --> AC[controllers/auth_controller.go]
-  Router --> LC[controllers/login_controller.go 复用注入]
-  Router --> EX[controllers/exlogin_controller.go 复用注入]
-  Router --> EC[controllers/event_controller.go 复用注入]
-  AC --> MS[service/auth_manage_service.go]
-  AC --> AS[service/auth_service.go]
+  Router["routers/beego_router.go 复用"] --> AC["controllers/auth_controller.go"]
+  Router --> LC["controllers/login_controller.go 复用注入"]
+  Router --> EX["controllers/exlogin_controller.go 复用注入"]
+  Router --> EC["controllers/event_controller.go 复用注入"]
+  AC --> MS["service/auth_manage_service.go"]
+  AC --> AS["service/auth_service.go"]
   LC --> AS
   EX --> AS
   EC --> AS
   MS --> AS
-  AS --> Cache[service/auth_cache.go]
-  AS --> DAO[dao/white_list.go]
+  AS --> Cache["service/auth_cache.go"]
+  AS --> DAO["dao/white_list.go"]
   MS --> DAO
-  DAO --> Base[dao/base_dao.go 复用继承]
-  DAO --> Model[models/db/white_list.go]
-  Model --> DDL[dao/db_init.go + db_local_sqlite.go 复用改双DDL]
+  DAO --> Base["dao/base_dao.go 复用继承"]
+  DAO --> Model["models/db/white_list.go"]
+  Model --> DDL["dao/db_init.go + db_local_sqlite.go 复用改双DDL"]
 ```
 
 | 模块 | 承载功能（引用文件） |
@@ -157,7 +157,7 @@ sequenceDiagram
     MS-->>AC: code=-1（提示用 update）
   else 校验通过
     MS->>DAO: InsertMulti / ClearAndInsert（事务）
-    DAO->>DB: BEGIN; [清表;] 批量插入; COMMIT
+    DAO->>DB: 事务：清表(update)+批量插入+提交
     MS->>AS: ClearCache()（裁定6）
     MS-->>AC: {code:200, count:N}
   end
