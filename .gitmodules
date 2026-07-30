@@ -1,0 +1,3 @@
+[submodule ".claude/plugins/specgo"]
+	path = .claude/plugins/specgo
+	url = git@github.com:CoreGeekASTL/specgo.git
