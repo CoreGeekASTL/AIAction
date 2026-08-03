@@ -21,6 +21,10 @@ const (
 	importMaxFileSize = 3 * 1024 * 1024
 	// importMaxRecords 单文件记录数上限 20W
 	importMaxRecords = 200000
+	// csvFieldCount CSV 每行字段数：IMEI,IMSI 两列
+	csvFieldCount = 2
+	// timeLayoutSecond 秒级时间格式，CreatedAt 落库用
+	timeLayoutSecond = "2006-01-02 15:04:05"
 	// operationFirstImport 首次导入，要求白名单表为空
 	operationFirstImport = "firstImport"
 	// operationUpdate 覆盖更新，事务清表 + 批量插入
@@ -62,17 +66,13 @@ func (s *authManageServiceImpl) Import(reader io.Reader, operation string) (int,
 	if operation != operationFirstImport && operation != operationUpdate {
 		return 0, retcode.ClientFailed, fmt.Sprintf("operation [%s] invalid, expect firstImport or update", operation)
 	}
-	content, err := io.ReadAll(reader)
-	if err != nil {
-		logger.Errorf("[importIMEIList] read csv failed, err: [%v]", err)
-		return 0, retcode.InternalFailed, "read csv file failed"
+	content, errCode, errMsg := readWithSizeLimit(reader)
+	if errCode != retcode.Success {
+		return 0, errCode, errMsg
 	}
-	if len(content) > importMaxFileSize {
-		return 0, retcode.InternalFailed, "csv file size exceeds 3MB"
-	}
-	records, errMsg := parseWhiteListCSV(content)
-	if errMsg != "" {
-		return 0, retcode.InternalFailed, errMsg
+	records, parseMsg := parseWhiteListCSV(content)
+	if parseMsg != "" {
+		return 0, retcode.InternalFailed, parseMsg
 	}
 	if operation == operationFirstImport {
 		count, err := s.store.Count()
@@ -97,6 +97,19 @@ func (s *authManageServiceImpl) Import(reader io.Reader, operation string) (int,
 	return len(records), retcode.Success, "success"
 }
 
+// readWithSizeLimit 读取全部内容并校验大小上限，返回错误码与消息（Success 表示通过）
+func readWithSizeLimit(reader io.Reader) ([]byte, int, string) {
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		logger.Errorf("[importIMEIList] read csv failed, err: [%v]", err)
+		return nil, retcode.InternalFailed, "read csv file failed"
+	}
+	if len(content) > importMaxFileSize {
+		return nil, retcode.InternalFailed, "csv file size exceeds 3MB"
+	}
+	return content, retcode.Success, ""
+}
+
 // Export 全量查询白名单生成 CSV 文本，首行为 IMEI,IMSI 表头
 func (s *authManageServiceImpl) Export() (string, error) {
 	list, err := s.store.ListAll()
@@ -106,18 +119,23 @@ func (s *authManageServiceImpl) Export() (string, error) {
 	var builder strings.Builder
 	builder.WriteString("IMEI,IMSI\n")
 	for _, item := range list {
-		builder.WriteString(item.IMEI)
-		builder.WriteString(",")
-		builder.WriteString(item.IMSI)
-		builder.WriteString("\n")
+		writeCSVRow(&builder, item)
 	}
 	return builder.String(), nil
+}
+
+// writeCSVRow 追加一行 IMEI,IMSI 数据行
+func writeCSVRow(builder *strings.Builder, item db.AuthWhitelist) {
+	builder.WriteString(item.IMEI)
+	builder.WriteString(",")
+	builder.WriteString(item.IMSI)
+	builder.WriteString("\n")
 }
 
 // parseWhiteListCSV 纯数据 CSV（无 header），所有行当数据逐行强校验；返回空错误串表示成功
 func parseWhiteListCSV(content []byte) ([]db.AuthWhitelist, string) {
 	csvReader := csv.NewReader(strings.NewReader(string(content)))
-	csvReader.FieldsPerRecord = 2
+	csvReader.FieldsPerRecord = csvFieldCount
 	rows, err := csvReader.ReadAll()
 	if err != nil {
 		return nil, fmt.Sprintf("parse csv failed: %v", err)
@@ -130,7 +148,7 @@ func parseWhiteListCSV(content []byte) ([]db.AuthWhitelist, string) {
 	}
 	records := make([]db.AuthWhitelist, 0, len(rows))
 	seen := make(map[string]struct{}, len(rows))
-	now := time.Now().Format("2006-01-02 15:04:05")
+	now := time.Now().Format(timeLayoutSecond)
 	for i, row := range rows {
 		imei := strings.TrimSpace(row[0])
 		imsi := strings.TrimSpace(row[1])

@@ -40,12 +40,12 @@ func (c *AuthController) AuthIMEI() {
 		c.Failed(resp.BaseResponse{Code: retcode.AuthFailed, Message: "imei or imsi format invalid"})
 		return
 	}
-	pass, formatValid := c.authService.Check(request.IMEI, request.IMSI)
-	if !formatValid {
+	isPass, isFormatValid := c.authService.Check(request.IMEI, request.IMSI)
+	if !isFormatValid {
 		c.Failed(resp.BaseResponse{Code: retcode.AuthFailed, Message: "imei or imsi format invalid"})
 		return
 	}
-	if !pass {
+	if !isPass {
 		c.Failed(resp.BaseResponse{Code: retcode.AuthFailed, Message: "auth rejected"})
 		return
 	}

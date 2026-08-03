@@ -92,25 +92,25 @@ func TestAuthCheck(t *testing.T) {
 	store := newFakeWhiteListStore()
 	svc := newTestAuthService(store)
 
-	pass, valid := svc.Check("123", testIMSI)
-	assert.False(t, pass)
-	assert.False(t, valid)
+	isPass, isValid := svc.Check("123", testIMSI)
+	assert.False(t, isPass)
+	assert.False(t, isValid)
 
-	pass, valid = svc.Check(testIMEI, testIMSI)
-	assert.True(t, pass)
-	assert.True(t, valid)
+	isPass, isValid = svc.Check(testIMEI, testIMSI)
+	assert.True(t, isPass)
+	assert.True(t, isValid)
 
 	store.records[testIMEI] = db.AuthWhitelist{IMEI: testIMEI, IMSI: testIMSI}
-	svc2 := newTestAuthService(store)
+	svcWithRecord := newTestAuthService(store)
 
-	pass, _ = svc2.Check(testIMEI, testIMSI)
-	assert.True(t, pass)
+	isPass, _ = svcWithRecord.Check(testIMEI, testIMSI)
+	assert.True(t, isPass)
 
-	pass, _ = svc2.Check(testIMEI, testIMSI2)
-	assert.False(t, pass)
+	isPass, _ = svcWithRecord.Check(testIMEI, testIMSI2)
+	assert.False(t, isPass)
 
-	pass, _ = svc2.Check(testIMEI2, testIMSI)
-	assert.False(t, pass)
+	isPass, _ = svcWithRecord.Check(testIMEI2, testIMSI)
+	assert.False(t, isPass)
 }
 
 /*
@@ -124,23 +124,23 @@ func TestAuthCheckCache(t *testing.T) {
 	store.records[testIMEI] = db.AuthWhitelist{IMEI: testIMEI, IMSI: testIMSI}
 	svc := newTestAuthService(store)
 
-	svc.Check(testIMEI, testIMSI)
+	_, _ = svc.Check(testIMEI, testIMSI)
 	countCalls, getCalls := store.countCalls, store.getCalls
 
-	pass, _ := svc.Check(testIMEI, testIMSI)
-	assert.True(t, pass)
+	isPass, _ := svc.Check(testIMEI, testIMSI)
+	assert.True(t, isPass)
 	assert.Equal(t, countCalls, store.countCalls)
 	assert.Equal(t, getCalls, store.getCalls)
 
-	pass, _ = svc.Check(testIMEI2, testIMSI2)
-	assert.False(t, pass)
+	isPass, _ = svc.Check(testIMEI2, testIMSI2)
+	assert.False(t, isPass)
 	getCalls = store.getCalls
-	pass, _ = svc.Check(testIMEI2, testIMSI2)
-	assert.False(t, pass)
+	isPass, _ = svc.Check(testIMEI2, testIMSI2)
+	assert.False(t, isPass)
 	assert.Equal(t, getCalls, store.getCalls)
 
 	svc.ClearCache()
-	svc.Check(testIMEI, testIMSI)
+	_, _ = svc.Check(testIMEI, testIMSI)
 	assert.Greater(t, store.countCalls, countCalls)
 }
 
@@ -154,15 +154,15 @@ func TestAuthCheckStoreError(t *testing.T) {
 	store := newFakeWhiteListStore()
 	store.countErr = errors.New("db down")
 	svc := newTestAuthService(store)
-	pass, _ := svc.Check(testIMEI, testIMSI)
-	assert.True(t, pass)
+	isPass, _ := svc.Check(testIMEI, testIMSI)
+	assert.True(t, isPass)
 
 	store.countErr = nil
 	store.records[testIMEI] = db.AuthWhitelist{IMEI: testIMEI, IMSI: testIMSI}
 	store.getErr = errors.New("db down")
-	svc2 := newTestAuthService(store)
-	pass, _ = svc2.Check(testIMEI, testIMSI)
-	assert.True(t, pass)
+	svcWithGetErr := newTestAuthService(store)
+	isPass, _ = svcWithGetErr.Check(testIMEI, testIMSI)
+	assert.True(t, isPass)
 }
 
 /*

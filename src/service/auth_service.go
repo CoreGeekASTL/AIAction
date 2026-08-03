@@ -28,7 +28,7 @@ var idPattern = regexp.MustCompile(`^[0-9]{15}$`)
 // AuthService 终端联合鉴权服务
 type AuthService interface {
 	// Check 联合鉴权：返回是否放行、IMEI/IMSI 格式是否合法
-	Check(imei, imsi string) (pass bool, formatValid bool)
+	Check(imei, imsi string) (isPass bool, isFormatValid bool)
 	// ClearCache 清空鉴权缓存，白名单导入成功后调用
 	ClearCache()
 }
@@ -61,12 +61,12 @@ func (s *authServiceImpl) Check(imei, imsi string) (bool, bool) {
 		return false, false
 	}
 	key := imei + "_" + imsi
-	if result, ok := s.cache.get(key); ok {
-		return result, true
+	if isAllowed, ok := s.cache.get(key); ok {
+		return isAllowed, true
 	}
-	result := s.checkFromStore(imei, imsi)
-	s.cache.set(key, result)
-	return result, true
+	isPass := s.checkFromStore(imei, imsi)
+	s.cache.set(key, isPass)
+	return isPass, true
 }
 
 // ClearCache 清空缓存，白名单变更后立即生效
@@ -84,7 +84,7 @@ func (s *authServiceImpl) checkFromStore(imei, imsi string) bool {
 	if count == 0 {
 		return true
 	}
-	wl, err := s.store.GetByIMEI(imei)
+	record, err := s.store.GetByIMEI(imei)
 	if err != nil {
 		if err == orm.ErrNoRows {
 			return false
@@ -92,5 +92,5 @@ func (s *authServiceImpl) checkFromStore(imei, imsi string) bool {
 		logger.Errorf("[auth] get white list by imei failed, err: [%v], fail-open", err)
 		return true
 	}
-	return wl.IMSI == imsi
+	return record.IMSI == imsi
 }

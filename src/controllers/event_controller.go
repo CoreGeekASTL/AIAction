@@ -31,6 +31,17 @@ func (c *EventController) Prepare() {
 	c.authService = service.NewAuthService()
 }
 
+// rejectIfAuthFailed 终端联合鉴权前置拦截：拒绝时写 401 响应并返回 true；
+// 事件链路格式错误与未命中统一 401，不区分 formatValid，故显式忽略
+func (c *EventController) rejectIfAuthFailed(imei, imsi string) bool {
+	isPass, _ := c.authService.Check(imei, imsi)
+	if isPass {
+		return false
+	}
+	c.Failed(resp.BaseResponse{Code: retcode.AuthFailed, Message: "auth rejected"})
+	return true
+}
+
 func (c *EventController) SendClientEvent() {
 	request := new(req.ClientEventRequest)
 	err := c.RequestBodyUnmarshalTo(request)
@@ -39,8 +50,7 @@ func (c *EventController) SendClientEvent() {
 		return
 	}
 
-	if pass, _ := c.authService.Check(request.IMEI, request.IMSI); !pass {
-		c.Failed(resp.BaseResponse{Code: retcode.AuthFailed, Message: "auth rejected"})
+	if c.rejectIfAuthFailed(request.IMEI, request.IMSI) {
 		return
 	}
 
@@ -77,8 +87,7 @@ func (c *EventController) SendAppUseTimesEvent() {
 		return
 	}
 
-	if pass, _ := c.authService.Check(request.IMEI, request.IMSI); !pass {
-		c.Failed(resp.BaseResponse{Code: retcode.AuthFailed, Message: "auth rejected"})
+	if c.rejectIfAuthFailed(request.IMEI, request.IMSI) {
 		return
 	}
 

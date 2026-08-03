@@ -52,8 +52,8 @@ func TestImportUpdate(t *testing.T) {
 	assert.Equal(t, retcode.Success, code)
 	assert.Equal(t, 2, count)
 	assert.Equal(t, 1, store.clearCalls)
-	_, exists := store.records[testIMEI2]
-	assert.False(t, exists)
+	_, ok := store.records[testIMEI2]
+	assert.False(t, ok)
 }
 
 /*
@@ -95,16 +95,16 @@ func TestImportClearCache(t *testing.T) {
 	auth := newTestAuthService(store)
 	svc := &authManageServiceImpl{store: store, auth: auth}
 
-	pass, _ := auth.Check(testIMEI2, testIMSI2)
-	assert.True(t, pass)
+	isPass, _ := auth.Check(testIMEI2, testIMSI2)
+	assert.True(t, isPass)
 
 	_, code, _ := svc.Import(strings.NewReader(testCSV), operationFirstImport)
 	assert.Equal(t, retcode.Success, code)
 
-	pass, _ = auth.Check(testIMEI2, testIMSI2)
-	assert.False(t, pass)
-	pass, _ = auth.Check(testIMEI, testIMSI)
-	assert.True(t, pass)
+	isPass, _ = auth.Check(testIMEI2, testIMSI2)
+	assert.False(t, isPass)
+	isPass, _ = auth.Check(testIMEI, testIMSI)
+	assert.True(t, isPass)
 }
 
 /*

@@ -102,7 +102,8 @@ func (c *ExLoginController) loginAuth(preOpenBrowser bool) (*req.LoginAuthReques
 		return nil, nil
 	}
 
-	if pass, _ := c.authService.Check(request.IMEI, request.IMSI); !pass {
+	// login 链路格式错误与未命中统一返回 -2，忽略 formatValid
+	if isPass, _ := c.authService.Check(request.IMEI, request.IMSI); !isPass {
 		logger.Warnf("[loginAuth] terminal auth rejected")
 		c.Failed(resp.BaseResponse{Code: retcode.ClientFailed, Message: "auth rejected"})
 		return nil, nil

@@ -30,11 +30,11 @@ func (d *WhiteListDao) Count() (int64, error) {
 
 // GetByIMEI 按 IMEI 主键查询整行（含 IMSI），未命中返回 orm.ErrNoRows
 func (d *WhiteListDao) GetByIMEI(imei string) (*db.AuthWhitelist, error) {
-	wl := &db.AuthWhitelist{IMEI: imei}
-	if err := d.Get(wl); err != nil {
+	record := &db.AuthWhitelist{IMEI: imei}
+	if err := d.Get(record); err != nil {
 		return nil, err
 	}
-	return wl, nil
+	return record, nil
 }
 
 // InsertMulti 批量插入白名单记录
