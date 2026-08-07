@@ -2,7 +2,7 @@
 
 ## 1. 任务概述
 
-27.0 商用补齐：新增白名单管理（CSV 导入/导出）与 IMEI+IMSI 联合鉴权（缓存+逃生态），注入登录与事件上报链路。设计细节见 [story 设计文档](../story/feature-terminal-auth.md)，本文档只管怎么改代码。
+27.0 商用补齐：新增白名单管理（CSV 导入/导出）与 IMEI+IMSI 联合鉴权（缓存+逃生态），注入登录与事件上报链路。设计细节见 [story 设计文档](../business/story/feature-terminal-auth.md)，本文档只管怎么改代码。
 
 ## 2. 修改文件清单
 
@@ -29,11 +29,11 @@
 
 | 框架 | 文档链接 | 按哪条约定执行 |
 |------|---------|---------------|
-| Beego Web | [rpc-beego-web.md](../framework-usage/rpc-beego-web.md) | 新 Controller 继承 BaseController，只动 RouteInfo()，注册由路由层统一遍历 |
-| Beego ORM | [storage-beego-orm.md](../framework-usage/storage-beego-orm.md) | 实体三步曲（orm 标签+TableName+init 注册），DAO 继承 BaseInterface，ContextDo 传 context.TODO() |
-| 自研单例 | [di-singleton.md](../framework-usage/di-singleton.md) | 接口 + 小写实现 + 包级变量 + sync.Once |
-| 协程原语 | [concurrency-goroutine-sync.md](../framework-usage/concurrency-goroutine-sync.md) | 缓存 sync.RWMutex，清理在写锁内完成，不起 goroutine |
-| Go 测试 | [test-go-testing.md](../framework-usage/test-go-testing.md) | testing + testify 表驱动，接口注入 fake |
+| Beego Web | [rpc-beego-web.md](../technical/framework-usage/rpc-beego-web.md) | 新 Controller 继承 BaseController，只动 RouteInfo()，注册由路由层统一遍历 |
+| Beego ORM | [storage-beego-orm.md](../technical/framework-usage/storage-beego-orm.md) | 实体三步曲（orm 标签+TableName+init 注册），DAO 继承 BaseInterface，ContextDo 传 context.TODO() |
+| 自研单例 | [di-singleton.md](../technical/framework-usage/di-singleton.md) | 接口 + 小写实现 + 包级变量 + sync.Once |
+| 协程原语 | [concurrency-goroutine-sync.md](../technical/framework-usage/concurrency-goroutine-sync.md) | 缓存 sync.RWMutex，清理在写锁内完成，不起 goroutine |
+| Go 测试 | [test-go-testing.md](../technical/framework-usage/test-go-testing.md) | testing + testify 表驱动，接口注入 fake |
 
 ## 4. 要调用的外部接口
 
