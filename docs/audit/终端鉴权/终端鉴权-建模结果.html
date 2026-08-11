@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>27.0 终端鉴权需求设计文档 — 多彩建模审核报告</title>
+<style>
+  :root {
+    --pink:#f9c8d8;   --pink-border:#e0658f;
+    --yellow:#fdf0c0; --yellow-border:#d4a017;
+    --green:#cdeccc;  --green-border:#3e9e4f;
+    --blue:#c9defa;   --blue-border:#3a76c4;
+    --gap-border:#d93025;
+    --text:#1f2329; --muted:#646a73; --bg:#f5f6f7;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:"PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); padding:24px; }
+  header { margin-bottom:16px; }
+  h1 { font-size:22px; }
+  .meta { color:var(--muted); font-size:13px; margin-top:6px; }
+  .legend { display:flex; gap:12px; flex-wrap:wrap; background:#fff; border-radius:10px; padding:12px 16px; margin:14px 0; font-size:13px; }
+  .legend span { display:inline-flex; align-items:center; gap:6px; }
+  .dot { width:14px; height:14px; border-radius:4px; display:inline-block; border:2px solid; }
+  section { background:#fff; border-radius:10px; padding:16px 20px; margin-bottom:16px; }
+  h2 { font-size:16px; margin-bottom:12px; }
+  h3 { font-size:14px; margin:14px 0 8px; color:var(--muted); }
+  .flow { display:flex; flex-direction:column; gap:10px; }
+  .row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .card { border-radius:8px; padding:10px 14px; font-size:14px; border:2px solid; max-width:340px; }
+  .card .tag { font-size:11px; color:var(--muted); display:block; margin-bottom:2px; }
+  .card .src { font-size:11px; color:var(--muted); display:block; margin-top:4px; }
+  .mi  { background:var(--pink);   border-color:var(--pink-border); }
+  .role{ background:var(--yellow); border-color:var(--yellow-border); }
+  .ppt { background:var(--green);  border-color:var(--green-border); }
+  .desc{ background:var(--blue);   border-color:var(--blue-border); }
+  .arrow { color:var(--muted); font-size:18px; }
+  .resolved { border:2px solid var(--green-border); background:#f3faf3; border-radius:8px; padding:10px 14px; font-size:14px; }
+  .resolved .v { color:var(--green-border); font-weight:600; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { border:1px solid #e5e6eb; padding:8px 10px; text-align:left; }
+  th { background:#f5f6f7; }
+  .sev-block { color:#d93025; } .sev-risk { color:#d4a017; } .sev-tip { color:#8f959e; }
+  .banner { background:#fff7e6; border:1px solid #ffd591; border-radius:10px; padding:14px 18px; font-size:14px; margin-bottom:16px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>27.0 终端鉴权需求设计文档 — 多彩建模审核报告</h1>
+  <div class="meta">生成时间：2026-08-11 ｜ 建模状态：定稿（全部断点已人工裁定） ｜ 断点：12 处（已补齐 12 / 仍存疑 0）</div>
+</header>
+
+<div class="banner">
+  ⚠️ <b>编码前必读：</b>全部断点已人工裁定并回填需求文档（含 §2.2 两张时序图）。编码人员仍需复核：裁定是否符合真实业务、以及建模未覆盖的编码细节（异常处理、并发、边界值）。确认后方可进入编码阶段。
+</div>
+
+<div class="legend">
+  <span><i class="dot" style="background:var(--pink);border-color:var(--pink-border)"></i>粉·事件：需要记账的业务活动</span>
+  <span><i class="dot" style="background:var(--yellow);border-color:var(--yellow-border)"></i>黄·角色：谁以什么身份参与</span>
+  <span><i class="dot" style="background:var(--blue);border-color:var(--blue-border)"></i>蓝·描述：规则/分类/约束</span>
+  <span><i class="dot" style="background:var(--green);border-color:var(--green-border)"></i>绿·实体：客观存在的业务对象</span>
+</div>
+
+<section>
+  <h2>一、主流程建模</h2>
+  <div class="flow">
+
+    <h3>流程 A：白名单导入（Story-1/2）</h3>
+    <div class="row">
+      <div class="card role"><span class="tag">角色</span>运营/后台<span class="src">出处：§2.2.1（原文明确）</span></div>
+      <span class="arrow">→</span>
+      <div class="card mi"><span class="tag">事件</span>POST /auth/v1/importIMEIList（multipart/form-data，operation=firstImport/update）<span class="src">出处：§2.2.1（人工补齐 D2：multipart 上传）</span></div>
+      <span class="arrow">→</span>
+      <div class="card mi"><span class="tag">事件</span>GIDS 校验文件≤3MB + 逐行强校验 IMEI/IMSI 15位纯数字 + 单文件≤20W条（硬限）<span class="src">出处：§2.2.1（人工补齐 G3/Q3：无header/UTF-8无BOM/20W硬限）</span></div>
+      <span class="arrow">→</span>
+      <div class="card mi"><span class="tag">事件</span>持写锁批量入库 1000条/批（firstImport 要求表空 / update 事务清表+批量插入），鉴权读阻塞至导入完成<span class="src">出处：§2.2.1（人工补齐 G2/Q3）</span></div>
+      <span class="arrow">→</span>
+      <div class="card ppt"><span class="tag">实体·状态变更</span>白名单表（空→有数据 / 旧名单→新名单）<span class="src">出处：§7（原文明确）</span></div>
+    </div>
+
+    <h3>流程 B：白名单导出（Story-2）</h3>
+    <div class="row">
+      <div class="card role"><span class="tag">角色</span>运营/后台<span class="src">出处：§2.2.2（原文明确）</span></div>
+      <span class="arrow">→</span>
+      <div class="card mi"><span class="tag">事件</span>GET /auth/v1/exportIMEIList<span class="src">出处：§2.2.2（原文明确）</span></div>
+      <span class="arrow">→</span>
+      <div class="card mi"><span class="tag">事件</span>GIDS 查询全量白名单生成 CSV 文本<span class="src">出处：§2.2.2（原文明确）</span></div>
+      <span class="arrow">→</span>
+      <div class="card ppt"><span class="tag">实体·输出</span>CSV 文件（IMEI+IMSI 两列全量记录）<span class="src">出处：§2.2.2（原文明确）</span></div>
+    </div>
+
+    <h3>流程 C：终端鉴权（Story-3/4/5，登录链路与事件上报链路共用）</h3>
+    <div class="row">
+      <div class="card role"><span class="tag">角色</span>终端设备<span class="src">出处：§2.2.3（原文明确）</span></div>
+      <span class="arrow">→</span>
+      <div class="card mi"><span class="tag">事件</span>登录/事件请求注入鉴权（IMEI/IMSI 取自已携带字段，无需协议扩展）<span class="src">出处：§2.2.3、§3 注（人工补齐 G4）</span></div>
+      <span class="arrow">→</span>
+      <div class="card mi"><span class="tag">事件</span>解析 IMEI+IMSI，格式非法即拒绝（短路）<span class="src">出处：§2.2.3 步骤1（原文明确）</span></div>
+      <span class="arrow">→</span>
+      <div class="card mi"><span class="tag">事件</span>逃生态判定：白名单表 Count==0 → 一律放行<span class="src">出处：§2.2.3 步骤2（原文明确）</span></div>
+      <span class="arrow">→</span>
+      <div class="card mi"><span class="tag">事件</span>内存缓存查询（IMEI+IMSI 联合键，RLock）<span class="src">出处：§2.2.4 步骤1（原文明确）</span></div>
+      <span class="arrow">→</span>
+      <div class="card mi"><span class="tag">事件</span>缓存未命中→回源 DB 联合精确匹配；DB 异常→拒绝（安全优先）<span class="src">出处：§2.2.3/§2.2.4（人工补齐 G1）</span></div>
+      <span class="arrow">→</span>
+      <div class="card ppt"><span class="tag">实体·状态变更</span>缓存条目写入（true/false/放行标记 + expireAt，TTL 30min）<span class="src">出处：§2.2.4 步骤3（原文明确）</span></div>
+      <span class="arrow">→</span>
+      <div class="card mi"><span class="tag">事件</span>鉴权结果：均命中→放行；未命中→注入点按链路转换拒绝码（登录 -2 / 事件 401）<span class="src">出处：§2.2.3（人工补齐 D1）</span></div>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <h2>二、规则与约束（蓝色描述）</h2>
+  <div class="row">
+    <div class="card desc"><span class="tag">描述/规则</span>IMEI/IMSI 严格 15 位纯数字，不允许其他字符<span class="src">出处：§2.2.1、§7（原文明确）</span></div>
+    <div class="card desc"><span class="tag">描述/规则</span>逃生态：白名单表为空时一律放行<span class="src">出处：§2.2.3、§4（原文明确）</span></div>
+    <div class="card desc"><span class="tag">描述/规则</span>联合鉴权：IMEI 与 IMSI 必须同时精确命中才放通<span class="src">出处：§1.2、§2.2.3（原文明确）</span></div>
+    <div class="card desc"><span class="tag">描述/规则</span>authIMEI 统一 HTTP 200 + body code，链路差异码由注入点转换<span class="src">出处：§2.2.3、§3（人工补齐 D1）</span></div>
+    <div class="card desc"><span class="tag">描述/规则</span>缓存：容量 1000、超限惰性清理最旧 500、TTL 30min、false 结果也缓存防穿透；DB 异常+miss→拒绝<span class="src">出处：§2.2.4（部分人工补齐 G1）</span></div>
+    <div class="card desc"><span class="tag">描述/规则</span>CSV 口径：无 header、UTF-8 无 BOM、逗号分隔、兼容 CRLF/LF、跳过空行<span class="src">出处：§2.2.1（人工补齐 G3）</span></div>
+    <div class="card desc"><span class="tag">描述/规则</span>导入规格：单文件≤3MB、20W 条硬限；1000 条/批；5 文件仅规格宣称不校验；导入持写锁阻塞鉴权读<span class="src">出处：§2.2.1（人工补齐 Q3/G2）</span></div>
+    <div class="card desc"><span class="tag">描述/规则</span>接口访问控制：三接口仅内网可达，不做认证，网络层隔离兜底<span class="src">出处：§2.1、§5（人工补齐 G5）</span></div>
+  </div>
+</section>
+
+<section>
+  <h2>三、逻辑断裂点与人工裁定（全部已补齐）</h2>
+  <div class="flow">
+
+    <div class="resolved"><span class="v">✅ 断点 D1（接口契约+响应码矛盾）已补齐：</span>authIMEI 统一返回 HTTP 200 + body code；登录 code=-2 与事件 code=401 的差异由各链路注入点 Controller 转换，authIMEI 不区分链路。已固化至 §2.2.3 接口契约段与 §3 表格。<br><b>人工裁定：</b>选项 a（2026-08-11）</div>
+
+    <div class="resolved"><span class="v">✅ 断点 G4（IMEI/IMSI 取数来源）已补齐：</span>现有 gridLoginAuth/gridLoginAuthOpenBrowser/sendClientEvent/sendAppUseTimesEvent 请求已携带 IMEI+IMSI 字段，直接取用，无需协议扩展。已固化至 §2.1、§2.2.3。<br><b>人工裁定：</b>选项 a（2026-08-11）</div>
+
+    <div class="resolved"><span class="v">✅ 断点 G1（DB 不可用时 miss 处置）已补齐：</span>缓存未命中 + DB 异常 → 拒绝（安全优先），不放行；已缓存条目不受影响。已固化至 §2.2.4「DB 异常降级」。<br><b>人工裁定：</b>选项 a（2026-08-11）</div>
+
+    <div class="resolved"><span class="v">✅ 断点 G2（导入窗口与并发导入）已补齐：</span>导入全程持写锁（含 update 清表+插入事务），鉴权读阻塞至导入完成；并发导入由写锁互斥。已固化至 §2.2.1 步骤6、§2.2.4 并发安全段。<br><b>人工裁定：</b>选项 a（2026-08-11）</div>
+
+    <div class="resolved"><span class="v">✅ 断点 G3（CSV 解析口径）已补齐：</span>纯数据无 header、UTF-8 无 BOM、逗号分隔、兼容 CRLF/LF、跳过空行。已固化至 §2.2.1「CSV 解析口径（强约束）」。<br><b>人工裁定：</b>选项 a（2026-08-11）</div>
+
+    <div class="resolved"><span class="v">✅ 断点 D2（上传方式与文件名校验）已补齐：</span>multipart/form-data 上传；文件名仅为运营命名约定，服务端不校验。已固化至 §2.1、§2.2.1。<br><b>人工裁定：</b>选项 a（2026-08-11）</div>
+
+    <div class="resolved"><span class="v">✅ 断点 G5（接口访问控制）已补齐：</span>三接口仅内网可达，不做接口级认证，网络层隔离兜底。已固化至 §2.1、§5。<br><b>人工裁定：</b>选项 a（2026-08-11）</div>
+
+    <div class="resolved"><span class="v">✅ 断点 D3（验收用例缺失）已补齐：</span>验收用例下放 Story 详设阶段补齐，与 §2.5 声明一致。<br><b>人工裁定：</b>选项 a（2026-08-11）</div>
+
+    <div class="resolved"><span class="v">✅ 断点 Q3（规格硬限与批量大小）已补齐：</span>单文件 20W 硬限（超限整批拒绝）；5 文件不做系统校验仅规格宣称；批量插入 1000 条/批。已固化至 §2.1、§2.2.1。<br><b>人工裁定：</b>选项 a（2026-08-11）</div>
+
+    <div class="resolved"><span class="v">✅ 断点 Q1（只读权限主体）已补齐：</span>文件只读权限为运营侧操作约定，服务端不校验。已固化至 §2.2.1。<br><b>人工裁定：</b>选项 a（2026-08-11）</div>
+
+    <div class="resolved"><span class="v">✅ 断点 Q2（术语统一）已补齐：</span>全文统一为「白名单」（§2.1「用户列表」已修订）；`SBG_imei_list_inport_0X` 的 inport 拼写为厂家既定约定，固化入 §8 词汇表。<br><b>人工裁定：</b>选项 a（2026-08-11）</div>
+
+    <div class="resolved"><span class="v">✅ 断点 D4（时序图缺失）已补齐：</span>本文档 §2.2.1 补充白名单导入时序图、§2.2.3 补充联合鉴权时序图（含分支与异常流程），已通过 mermaid 本地校验（VALID）。<br><b>人工裁定：</b>选项 b（2026-08-11）</div>
+
+  </div>
+</section>
+
+<section>
+  <h2>四、编码人员审核清单</h2>
+  <table>
+    <tr><th>#</th><th>审核项</th><th>严重程度</th><th>状态</th><th>审核意见</th></tr>
+    <tr><td>D1</td><td>authIMEI 统一 200+body code，注入点转换链路码 — 是否符合真实接口设计</td><td class="sev-block">阻塞级</td><td>已补齐·待复核</td><td></td></tr>
+    <tr><td>G4</td><td>现有请求已携带 IMEI+IMSI 字段 — 编码前请核实存量请求结构</td><td class="sev-block">阻塞级</td><td>已补齐·待复核</td><td></td></tr>
+    <tr><td>G1</td><td>DB 异常+缓存 miss→拒绝（安全优先）</td><td class="sev-block">阻塞级</td><td>已补齐·待复核</td><td></td></tr>
+    <tr><td>G2</td><td>导入写锁阻塞鉴权读的实现粒度（锁范围/死锁风险）</td><td class="sev-risk">风险级</td><td>已补齐·待复核</td><td></td></tr>
+    <tr><td>G3</td><td>CSV 解析口径与存量实现一致性</td><td class="sev-risk">风险级</td><td>已补齐·待复核</td><td></td></tr>
+    <tr><td>D2</td><td>multipart 上传、文件名不校验</td><td class="sev-risk">风险级</td><td>已补齐·待复核</td><td></td></tr>
+    <tr><td>G5</td><td>仅内网可达不认证 — 确认部署组网满足前提</td><td class="sev-risk">风险级</td><td>已补齐·待复核</td><td></td></tr>
+    <tr><td>D3</td><td>验收用例下放 Story 详设补齐</td><td class="sev-risk">风险级</td><td>已补齐·待复核</td><td></td></tr>
+    <tr><td>Q3</td><td>20W 硬限 / 1000 条/批 / 5 文件不校验；DB 100W 规格待实测</td><td class="sev-risk">风险级</td><td>已补齐·待复核</td><td></td></tr>
+    <tr><td>Q1</td><td>只读权限为运营约定</td><td class="sev-tip">提示级</td><td>已补齐</td><td></td></tr>
+    <tr><td>Q2</td><td>术语统一「白名单」；inport 拼写固化</td><td class="sev-tip">提示级</td><td>已补齐</td><td></td></tr>
+    <tr><td>D4</td><td>§2.2 两张时序图已补充并 VALID</td><td class="sev-tip">提示级</td><td>已补齐</td><td></td></tr>
+  </table>
+</section>
+
+</body>
+</html>

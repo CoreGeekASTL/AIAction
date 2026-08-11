@@ -36,6 +36,7 @@ func RegisterInternalRouter(server https.BeegoServer) {
 	registerController(server, &controllers.PluginController{})
 	registerController(server, &controllers.TrafficStatsController{})
 	registerController(server, &controllers.ConfigCenterController{})
+	registerController(server, &controllers.AuthController{})
 }
 
 func registerController(server https.BeegoServer, controller controllers.IController) {

@@ -5,6 +5,7 @@ package controllers
 
 import (
 	"GIDS/common/constants/retcode"
+	"GIDS/common/logger"
 	"GIDS/models/events"
 	"GIDS/models/req"
 	"GIDS/models/resp"
@@ -14,6 +15,7 @@ import (
 type EventController struct {
 	BaseController
 	eventService service.EventService
+	authService  service.AuthService
 }
 
 func (c *EventController) RouteInfo() RouteInfo {
@@ -27,6 +29,7 @@ func (c *EventController) RouteInfo() RouteInfo {
 
 func (c *EventController) Prepare() {
 	c.eventService = service.NewEventService()
+	c.authService = service.NewAuthService()
 }
 
 func (c *EventController) SendClientEvent() {
@@ -34,6 +37,13 @@ func (c *EventController) SendClientEvent() {
 	err := c.RequestBodyUnmarshalTo(request)
 	if err != nil {
 		c.Failed(resp.BaseResponse{Code: retcode.ClientFailed, Message: err.Error()})
+		return
+	}
+
+	allowed, _ := c.authService.AuthIMEI(request.IMEI, request.IMSI)
+	if !allowed {
+		logger.Warnf("[SendClientEvent] auth rejected, imei: [%s]", request.IMEI)
+		c.Failed(resp.BaseResponse{Code: retcode.AuthFailed, Message: "auth rejected"})
 		return
 	}
 
@@ -67,6 +77,13 @@ func (c *EventController) SendAppUseTimesEvent() {
 	err := c.RequestBodyUnmarshalTo(request)
 	if err != nil {
 		c.Failed(resp.BaseResponse{Code: retcode.ClientFailed, Message: err.Error()})
+		return
+	}
+
+	allowed, _ := c.authService.AuthIMEI(request.IMEI, request.IMSI)
+	if !allowed {
+		logger.Warnf("[SendAppUseTimesEvent] auth rejected, imei: [%s]", request.IMEI)
+		c.Failed(resp.BaseResponse{Code: retcode.AuthFailed, Message: "auth rejected"})
 		return
 	}
 

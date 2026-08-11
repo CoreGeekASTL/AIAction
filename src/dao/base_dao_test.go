@@ -254,62 +254,62 @@ func TestBaseDao(t *testing.T) {
 		convey.Convey("test mock dao", func() {
 			b = &DoNothingBase{}
 		})
-		convey.It("test base dao list", func() {
+		testutil.It("test base dao list", func() {
 			var (
 				md      []models.RouterAPPConfig
 				orderBy = ""
 			)
-			err := b.List(&md, *testutil.NewQueryOption().Filter("", nil).OrderBy(orderBy))
+			err := b.List(&md, *NewQueryOption().Filter("", nil).OrderBy(orderBy))
 			convey.So(err, convey.ShouldBeNil)
 		})
-		convey.It("test base dao get", func() {
+		testutil.It("test base dao get", func() {
 			var md models.RouterAPPConfig
 			err := b.Get(&md)
 			convey.So(err, convey.ShouldBeNil)
 		})
-		convey.It("test base dao insert", func() {
+		testutil.It("test base dao insert", func() {
 			var md models.RouterAPPConfig
 			err := b.Insert(&md)
 			convey.So(err, convey.ShouldBeNil)
 		})
-		convey.It("test base dao update", func() {
+		testutil.It("test base dao update", func() {
 			var md models.RouterAPPConfig
 			err := b.Update(&md)
 			convey.So(err, convey.ShouldBeNil)
 		})
-		convey.It("test base dao delete", func() {
+		testutil.It("test base dao delete", func() {
 			var md models.RouterAPPConfig
 			err := b.Delete(&md)
 			convey.So(err, convey.ShouldBeNil)
 		})
-		convey.It("test base dao query", func() {
+		testutil.It("test base dao query", func() {
 			var md models.RouterAPPConfig
 			err := b.QueryOne(&md, "select * from t_route_app_configs where id = 1")
 			convey.So(err, convey.ShouldBeNil)
 		})
-		convey.It("test base dao query multi", func() {
+		testutil.It("test base dao query multi", func() {
 			var md []models.RouterAPPConfig
 			err := b.QueryMulti(&md, "select * from t_route_app_configs")
 			convey.So(err, convey.ShouldBeNil)
 		})
-		convey.It("test base dao exec", func() {
+		testutil.It("test base dao exec", func() {
 			_, err := b.Exec(goctx.Background(), "delete from t_route_app_configs where id = 1")
 			convey.So(err, convey.ShouldBeNil)
 		})
-		convey.It("test base dao insert multi", func() {
+		testutil.It("test base dao insert multi", func() {
 			var md []models.RouterAPPConfig
 			err := b.InsertMulti(&md)
 			convey.So(err, convey.ShouldBeNil)
 		})
 
-		convey.It("test base dao do with ctx", func() {
+		testutil.It("test base dao do with ctx", func() {
 			err := b.DoTxWithCtx(goctx.Background(), func(ctx goctx.Context, txOrm orm.TxOrmer) error {
 				return nil
 			})
 			convey.So(err, convey.ShouldBeNil)
 		})
 
-		convey.It("test base dao insert with ctx", func() {
+		testutil.It("test base dao insert with ctx", func() {
 			var md models.RouterAPPConfig
 			err := b.InsertWithOrm(goctx.Background(), ormer, &md)
 			convey.So(err, convey.ShouldBeNil)

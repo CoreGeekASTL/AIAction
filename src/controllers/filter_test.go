@@ -50,7 +50,7 @@ func TestOverLoadFilterGranted(t *testing.T) {
 	context := beecontext.NewContext()
 	context.Input = beecontext.NewInput()
 	context.Input.Context = context
-	context.Request, err := http.NewRequest(http.MethodGet, "/api", nil)
+	context.Request, err = http.NewRequest(http.MethodGet, "/api", nil)
 	assert.NoError(t, err)
 	context.ResponseWriter = &beecontext.Response{}
 	OverLoadFilter(context)
@@ -76,7 +76,7 @@ func TestOverLoadFilterNotGranted(t *testing.T) {
 	context := beecontext.NewContext()
 	context.Input = beecontext.NewInput()
 	context.Input.Context = context
-	context.Request, err := http.NewRequest(http.MethodGet, "/api", nil)
+	context.Request, err = http.NewRequest(http.MethodGet, "/api", nil)
 	assert.NoError(t, err)
 	context.ResponseWriter = &beecontext.Response{ResponseWriter: httptest.NewRecorder()}
 	OverLoadFilter(context)

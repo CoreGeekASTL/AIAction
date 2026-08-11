@@ -132,6 +132,13 @@ ALTER TABLE t_session_stats ADD COLUMN IF NOT EXISTS finished_at VARCHAR(255) DE
 ALTER TABLE t_session_stats ADD COLUMN IF NOT EXISTS tcp_unique_id VARCHAR(36);
 CREATE UNIQUE INDEX IF NOT EXISTS t_tcp_unique_id ON t_session_stats(tcp_unique_id);
 
+CREATE TABLE IF NOT EXISTS t_white_list (
+    imei char(15) NOT NULL PRIMARY KEY,  -- 设备标识，Beego 不支持复合 pk，IMEI 设 pk
+    imsi char(15) NOT NULL,  -- 用户身份标识，唯一性靠 UNIQUE INDEX 兜底
+    created_at varchar(255) DEFAULT ''
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_white_list_imsi ON t_white_list(imsi);
+
 -- 添加接入类型access_type
 ALTER TABLE t_media_traffic_stats ADD COLUMN IF NOT EXISTS access_type INT;
 ALTER TABLE t_control_traffic_stats ADD COLUMN IF NOT EXISTS access_type INT;
