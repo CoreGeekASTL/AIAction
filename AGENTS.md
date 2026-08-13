@@ -27,7 +27,6 @@ GlobalInstanceDeliverService/
 ├── docs/                   # 设计文档（按需求编号组织）
 │   └── 27.0/终端鉴权/      # SR→架构→实现设计→Story详设
 ├── build/                  # 构建脚本
-└── .opencode/skills/       # 项目级skill定义
 ```
 
 ---
@@ -53,68 +52,17 @@ $env:LOCAL_MODE="true"; .\gids.exe          # PowerShell
 
 ---
 
-## 开发流程（训战五步法）
+## 代码生成流程
 
-本项目采用 superspec 全链路流程，从需求到交付五步闭环：
-
-```mermaid
-flowchart LR
-    SR["① SEHarness<br/>需求分析+SR文档"] --> ARCH["② 系统架构设计"]
-    ARCH --> SVC["③ 服务实现设计"]
-    SVC --> STORY["④ Story详设"]
-    STORY --> CODE["⑤ 代码生成+测试验证"]
-```
-
-每一步的产出物在 `docs/{需求编号}/{功能名}/` 下：
-
-| 步骤 | Skill | 产出物 | 评审要求 |
-| --- | --- | --- | --- |
-| ① 需求分析 | se-harness | SR文档（`{编号}{功能名}SR文档.md`） | 用户确认需求完整性 |
-| ② 系统架构设计 | sw-architecture-design | 系统实现架构设计文档 | 用户确认技术选型 |
-| ③ 服务实现设计 | sw-service-architecture-design | 服务实现设计文档（主设计文档） | 用户确认接口+数据流 |
-| ④ Story详设 | story-detail-design | Story-1~N详设文档 | 用户确认每个Story可独立开发 |
-| ⑤ 代码生成+验证 | code-generation-quality-loop | 代码+测试+总报告 | 所有TC SUCCESS |
-
-### ⑤ 代码生成内部流程
+从需求到交付的固定顺序，任一环节不通过不得进入下一步：
 
 ```
-代码生成 → 质量检查(CodeCheck+臆造+风格) → DT测试 → 集成测试(testsuit) → 总报告 → 提交
+需求确认 → 代码生成 → 质量检查（go vet + 风格基线）→ DT单元测试 → 集成测试(testsuit) → 提交
 ```
 
-详见 `.opencode/skills/code-generation-quality-loop/SKILL.md`。
-
----
-
-## Skill体系
-
-项目级skill在 `.opencode/skills/` 下（35个），关键skill：
-
-| 分类 | Skill | 何时使用 |
-| --- | --- | --- |
-| **全链路** | superspec | 端到端开发：SR→架构→实现→Story→代码 |
-| **需求** | se-harness | 需求分析+SR文档生成（任何创造性工作之前） |
-| **设计** | sw-architecture-design | 系统架构设计 |
-| | sw-service-architecture-design | 服务实现设计 |
-| | story-detail-design | Story详设文档生成 |
-| **代码** | code-generation-quality-loop | 代码生成+质量检查+DT测试+集成测试+总报告 |
-| | code-quality-check | 代码质量检查（Go 17条/Java 13条规则） |
-| **测试** | test-code-generation-loop | pytest测试用例生成+执行验证 |
-| | test-driven-development | TDD：先写测试再写实现 |
-| **验证** | verification-before-completion | 宣称完成前必须运行验证命令 |
-| **调试** | systematic-debugging | bug/测试失败时的系统化调试 |
-| **评审** | requesting-code-review | 完成功能后请求代码评审 |
-| | receiving-code-review | 收到评审反馈后的技术严谨执行 |
-| | chinese-code-review | 中文评审沟通（仅 /chinese-code-review 触发） |
-| **规划** | writing-plans | 多步骤任务动手前先写计划 |
-| | executing-plans | 在新会话中执行书面实现计划 |
-| **并行** | dispatching-parallel-agents | 2+独立任务并行派发子代理 |
-| | subagent-driven-development | 在当前会话中派子代理执行独立任务 |
-| **Git** | finishing-a-development-branch | 实现完成后的合并/PR/清理决策 |
-| | using-git-worktrees | 需要隔离工作区时使用git worktree |
-| **文档** | document-selector | 分析需求描述选择最相关模块文档 |
-| | doc-header | 为markdown文档添加YAML frontmatter头 |
-
-**使用方式**：Skill是被动加载的——当任务描述匹配skill时，AI会自动调用；也可手动 `/skill-name` 触发。
+- 质量检查：必须过 `go vet ./...`，并对照「代码风格规范」节的基线条目。
+- DT 测试：`go test -v ./service/... ./dao/... ./controllers/...` 全绿。
+- 集成测试：testsuit 存在时必须主动运行全部 TC（见「常用命令」），不可等用户提醒；所有 TC SUCCESS 后才算完成。
 
 ---
 
@@ -135,8 +83,6 @@ flowchart LR
 | HTTP请求 | 优先 `https.NewRequest().WithRetry()` builder | 搜索 `NewRequest` |
 | UUID生成 | `github.com/google/uuid.New()` | 搜索 `uuid.New` |
 | 本地IP | `https.GetLocalIP(ethEnv, defaultEth)` | 搜索 `GetLocalIP` |
-
-完整规则17条见 `.opencode/skills/code-quality-check/reference/codecheck-go.md`。
 
 ---
 
